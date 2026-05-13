@@ -201,7 +201,7 @@ export default function App() {
             transition={{ duration: 0.7 }}
             className="text-lg md:text-2xl font-black tracking-tight"
           >
-            Edoardo Massetti
+            FattiDiretti
           </motion.h1>
 
           <div className="hidden md:flex gap-8 text-sm text-white/60">
@@ -250,7 +250,7 @@ export default function App() {
             </h2>
 
             <p className="text-lg md:text-xl text-white/65 max-w-xl mb-10 leading-relaxed">
-              Edoardo Massetti racconta storie, persone e realtà nascoste con
+              FattiDiretti racconta storie, persone e realtà nascoste con
               uno stile moderno, diretto e visivamente potente.
             </p>
 
@@ -280,7 +280,7 @@ export default function App() {
             <div className="aspect-[4/5] rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-white/18 via-white/7 to-white/3 shadow-2xl overflow-hidden flex items-end">
               <div className="p-8">
                 <p className="text-6xl md:text-8xl font-black text-white/10">
-                  MASSETTI
+                  FATTIDIRETTI
                 </p>
                 <p className="text-white/55 mt-4">
                   Immagine editoriale in arrivo.
@@ -491,7 +491,7 @@ export default function App() {
           </p>
 
           <h2 className="text-5xl md:text-7xl font-black mt-4 mb-10">
-            Admin Edoardo
+            Admin
           </h2>
 
           {message && <p className="mb-8 text-white/70 font-bold">{message}</p>}
@@ -766,7 +766,7 @@ export default function App() {
 
       <footer className="px-6 py-8 border-t border-white/10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-4 text-sm text-white/40">
-          <p>© 2026 Edoardo Massetti</p>
+          <p>© 2026 FattiDiretti</p>
           <p>Giornalismo moderno • Video Podcast • Editoriale</p>
         </div>
       </footer>
