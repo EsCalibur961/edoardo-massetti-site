@@ -18,19 +18,14 @@ import { db, auth } from "./firebase"
 
 export default function App() {
   const [stories, setStories] = useState([])
+  const [podcasts, setPodcasts] = useState([])
   const [editingId, setEditingId] = useState(null)
+  const [editingPodcastId, setEditingPodcastId] = useState(null)
   const [user, setUser] = useState(null)
   const [message, setMessage] = useState("")
 
-  const [loginForm, setLoginForm] = useState({
-    email: "",
-    password: "",
-  })
-
-  const [registerForm, setRegisterForm] = useState({
-    email: "",
-    password: "",
-  })
+  const [loginForm, setLoginForm] = useState({ email: "", password: "" })
+  const [registerForm, setRegisterForm] = useState({ email: "", password: "" })
 
   const [form, setForm] = useState({
     tag: "",
@@ -38,20 +33,30 @@ export default function App() {
     desc: "",
   })
 
-  const storiesCollection = collection(db, "articles")
+  const [podcastForm, setPodcastForm] = useState({
+    category: "",
+    title: "",
+    desc: "",
+    image: "",
+    videoUrl: "",
+  })
+
+  const articlesCollection = collection(db, "articles")
+  const podcastsCollection = collection(db, "podcasts")
 
   async function loadStories() {
-    const data = await getDocs(storiesCollection)
-    const articles = data.docs.map((item) => ({
-      id: item.id,
-      ...item.data(),
-    }))
+    const data = await getDocs(articlesCollection)
+    setStories(data.docs.map((item) => ({ id: item.id, ...item.data() })))
+  }
 
-    setStories(articles)
+  async function loadPodcasts() {
+    const data = await getDocs(podcastsCollection)
+    setPodcasts(data.docs.map((item) => ({ id: item.id, ...item.data() })))
   }
 
   useEffect(() => {
     loadStories()
+    loadPodcasts()
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser)
@@ -63,11 +68,7 @@ export default function App() {
   async function loginAdmin() {
     try {
       setMessage("")
-      await signInWithEmailAndPassword(
-        auth,
-        loginForm.email,
-        loginForm.password
-      )
+      await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password)
       setLoginForm({ email: "", password: "" })
       setMessage("Accesso effettuato.")
     } catch {
@@ -115,7 +116,7 @@ export default function App() {
       setEditingId(null)
       setMessage("Articolo modificato.")
     } else {
-      await addDoc(storiesCollection, form)
+      await addDoc(articlesCollection, form)
       setMessage("Articolo pubblicato.")
     }
 
@@ -134,10 +135,60 @@ export default function App() {
 
   async function deleteStory(id) {
     if (!user) return
-
     await deleteDoc(doc(db, "articles", id))
     setMessage("Articolo eliminato.")
     loadStories()
+  }
+
+  async function savePodcast() {
+    if (!user) return
+
+    if (
+      !podcastForm.category ||
+      !podcastForm.title ||
+      !podcastForm.desc ||
+      !podcastForm.image
+    ) {
+      setMessage("Compila categoria, titolo, descrizione e immagine podcast.")
+      return
+    }
+
+    if (editingPodcastId) {
+      await updateDoc(doc(db, "podcasts", editingPodcastId), podcastForm)
+      setEditingPodcastId(null)
+      setMessage("Podcast modificato.")
+    } else {
+      await addDoc(podcastsCollection, podcastForm)
+      setMessage("Podcast pubblicato.")
+    }
+
+    setPodcastForm({
+      category: "",
+      title: "",
+      desc: "",
+      image: "",
+      videoUrl: "",
+    })
+
+    loadPodcasts()
+  }
+
+  function startEditPodcast(podcast) {
+    setEditingPodcastId(podcast.id)
+    setPodcastForm({
+      category: podcast.category || "",
+      title: podcast.title || "",
+      desc: podcast.desc || "",
+      image: podcast.image || "",
+      videoUrl: podcast.videoUrl || "",
+    })
+  }
+
+  async function deletePodcast(id) {
+    if (!user) return
+    await deleteDoc(doc(db, "podcasts", id))
+    setMessage("Podcast eliminato.")
+    loadPodcasts()
   }
 
   return (
@@ -154,26 +205,22 @@ export default function App() {
           </motion.h1>
 
           <div className="hidden md:flex gap-8 text-sm text-white/60">
-  <a href="#" className="hover:text-white transition">
-    Home
-  </a>
-
-  <a href="#stories" className="hover:text-white transition">
-    Articoli
-  </a>
-
-  <a href="#podcast" className="hover:text-white transition">
-    Podcast
-  </a>
-
-  <a href="#register" className="hover:text-white transition">
-    Registrati
-  </a>
-
-  <a href="#admin" className="hover:text-white transition">
-    Admin
-  </a>
-</div>
+            <a href="#" className="hover:text-white transition">
+              Home
+            </a>
+            <a href="#stories" className="hover:text-white transition">
+              Articoli
+            </a>
+            <a href="#podcast" className="hover:text-white transition">
+              Podcast
+            </a>
+            <a href="#register" className="hover:text-white transition">
+              Registrati
+            </a>
+            <a href="#admin" className="hover:text-white transition">
+              Admin
+            </a>
+          </div>
         </div>
       </nav>
 
@@ -219,7 +266,7 @@ export default function App() {
                 href="#podcast"
                 className="px-8 py-4 rounded-full border border-white/20 text-center hover:bg-white/10 transition"
               >
-                Ascolta podcast
+                Guarda podcast
               </a>
             </div>
           </motion.div>
@@ -243,9 +290,11 @@ export default function App() {
 
             <div className="absolute -bottom-8 -left-4 md:-left-8 bg-white text-black p-6 rounded-3xl shadow-2xl max-w-xs">
               <p className="text-xs font-black uppercase text-black/45 tracking-[0.25em]">
-                Articoli pubblicati
+                Contenuti pubblicati
               </p>
-              <h3 className="text-4xl font-black mt-3">{stories.length}</h3>
+              <h3 className="text-4xl font-black mt-3">
+                {stories.length + podcasts.length}
+              </h3>
             </div>
           </motion.div>
         </div>
@@ -294,42 +343,86 @@ export default function App() {
         </div>
       </section>
 
-      <section id="podcast" className="px-6 py-28 border-t border-white/10 bg-[#080808]">
+      <section
+        id="podcast"
+        className="px-6 py-28 border-t border-white/10 bg-[#080808]"
+      >
         <div className="max-w-7xl mx-auto">
-          <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
-            Podcast
-          </p>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-14">
+            <div>
+              <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
+                Video Podcast
+              </p>
 
-          <h2 className="text-5xl md:text-7xl font-black mt-4 mb-10">
-            Voci, storie e approfondimenti.
-          </h2>
+              <h2 className="text-5xl md:text-7xl font-black mt-4">
+                Podcast cinematografici.
+              </h2>
+            </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((item) => (
-              <motion.div
-                key={item}
-                whileHover={{ y: -10, scale: 1.02 }}
-                className="p-8 rounded-[2rem] bg-white/5 border border-white/10 hover:border-white/30 transition"
-              >
-                <p className="uppercase tracking-[0.25em] text-white/40 text-xs mb-4">
-                  Episodio {item}
-                </p>
-
-                <h3 className="text-3xl font-black mb-5">
-                  Dentro la notizia
-                </h3>
-
-                <p className="text-white/50 mb-8 leading-relaxed">
-                  Un podcast editoriale tra attualità, storie reali e
-                  retroscena.
-                </p>
-
-                <button className="px-6 py-3 rounded-full bg-white text-black font-black hover:scale-105 transition">
-                  Ascolta
-                </button>
-              </motion.div>
-            ))}
+            <p className="text-white/50 max-w-xl leading-relaxed">
+              Approfondimenti, reportage, interviste e contenuti esclusivi
+              raccontati attraverso video podcast moderni e immersivi.
+            </p>
           </div>
+
+          {podcasts.length === 0 ? (
+            <p className="text-white/50 text-xl">
+              Nessun podcast pubblicato.
+            </p>
+          ) : (
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
+              {podcasts.map((podcast) => (
+                <motion.div
+                  key={podcast.id}
+                  whileHover={{ y: -10, scale: 1.02 }}
+                  transition={{ duration: 0.4 }}
+                  className="rounded-[2rem] overflow-hidden bg-white/5 border border-white/10 hover:border-white/30 transition"
+                >
+                  <div className="aspect-video bg-black relative overflow-hidden">
+                    <img
+                      src={podcast.image}
+                      alt={podcast.title}
+                      className="w-full h-full object-cover opacity-80"
+                    />
+
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                      <a
+                        href={podcast.videoUrl || "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-20 h-20 rounded-full bg-white text-black text-2xl font-black hover:scale-110 transition flex items-center justify-center"
+                      >
+                        ▶
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="p-7">
+                    <p className="uppercase tracking-[0.25em] text-white/40 text-xs mb-4">
+                      {podcast.category}
+                    </p>
+
+                    <h3 className="text-3xl font-black mb-5 leading-tight">
+                      {podcast.title}
+                    </h3>
+
+                    <p className="text-white/50 leading-relaxed mb-8">
+                      {podcast.desc}
+                    </p>
+
+                    <a
+                      href={podcast.videoUrl || "#"}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block px-6 py-3 rounded-full bg-white text-black font-black hover:scale-105 transition"
+                    >
+                      Guarda episodio
+                    </a>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -359,10 +452,7 @@ export default function App() {
                 placeholder="Email"
                 value={registerForm.email}
                 onChange={(e) =>
-                  setRegisterForm({
-                    ...registerForm,
-                    email: e.target.value,
-                  })
+                  setRegisterForm({ ...registerForm, email: e.target.value })
                 }
                 className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/10 outline-none"
               />
@@ -391,7 +481,10 @@ export default function App() {
         </div>
       </section>
 
-      <section id="admin" className="px-6 py-28 bg-black border-t border-white/10">
+      <section
+        id="admin"
+        className="px-6 py-28 bg-black border-t border-white/10"
+      >
         <div className="max-w-7xl mx-auto">
           <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
             Area riservata
@@ -401,9 +494,7 @@ export default function App() {
             Admin Edoardo
           </h2>
 
-          {message && (
-            <p className="mb-8 text-white/70 font-bold">{message}</p>
-          )}
+          {message && <p className="mb-8 text-white/70 font-bold">{message}</p>}
 
           {!user ? (
             <div className="max-w-xl p-8 rounded-[2rem] bg-white text-black">
@@ -415,10 +506,7 @@ export default function App() {
                   placeholder="Email"
                   value={loginForm.email}
                   onChange={(e) =>
-                    setLoginForm({
-                      ...loginForm,
-                      email: e.target.value,
-                    })
+                    setLoginForm({ ...loginForm, email: e.target.value })
                   }
                   className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                 />
@@ -428,10 +516,7 @@ export default function App() {
                   placeholder="Password"
                   value={loginForm.password}
                   onChange={(e) =>
-                    setLoginForm({
-                      ...loginForm,
-                      password: e.target.value,
-                    })
+                    setLoginForm({ ...loginForm, password: e.target.value })
                   }
                   className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                 />
@@ -472,10 +557,7 @@ export default function App() {
                       placeholder="Categoria"
                       value={form.tag}
                       onChange={(e) =>
-                        setForm({
-                          ...form,
-                          tag: e.target.value,
-                        })
+                        setForm({ ...form, tag: e.target.value })
                       }
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                     />
@@ -485,10 +567,7 @@ export default function App() {
                       placeholder="Titolo"
                       value={form.title}
                       onChange={(e) =>
-                        setForm({
-                          ...form,
-                          title: e.target.value,
-                        })
+                        setForm({ ...form, title: e.target.value })
                       }
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                     />
@@ -498,10 +577,7 @@ export default function App() {
                       placeholder="Descrizione"
                       value={form.desc}
                       onChange={(e) =>
-                        setForm({
-                          ...form,
-                          desc: e.target.value,
-                        })
+                        setForm({ ...form, desc: e.target.value })
                       }
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none resize-none"
                     />
@@ -550,6 +626,139 @@ export default function App() {
                   ))}
                 </div>
               </div>
+
+              <div className="mt-20">
+                <h2 className="text-4xl md:text-5xl font-black mb-10">
+                  Gestione Video Podcast
+                </h2>
+
+                <div className="grid lg:grid-cols-2 gap-8">
+                  <div className="p-8 rounded-[2rem] bg-white text-black">
+                    <h3 className="text-3xl font-black mb-6">
+                      {editingPodcastId ? "Modifica podcast" : "Nuovo podcast"}
+                    </h3>
+
+                    <div className="space-y-4">
+                      <input
+                        type="text"
+                        placeholder="Categoria podcast"
+                        value={podcastForm.category}
+                        onChange={(e) =>
+                          setPodcastForm({
+                            ...podcastForm,
+                            category: e.target.value,
+                          })
+                        }
+                        className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                      />
+
+                      <input
+                        type="text"
+                        placeholder="Titolo podcast"
+                        value={podcastForm.title}
+                        onChange={(e) =>
+                          setPodcastForm({
+                            ...podcastForm,
+                            title: e.target.value,
+                          })
+                        }
+                        className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                      />
+
+                      <textarea
+                        rows="4"
+                        placeholder="Descrizione podcast"
+                        value={podcastForm.desc}
+                        onChange={(e) =>
+                          setPodcastForm({
+                            ...podcastForm,
+                            desc: e.target.value,
+                          })
+                        }
+                        className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none resize-none"
+                      />
+
+                      <input
+                        type="text"
+                        placeholder="URL immagine copertina"
+                        value={podcastForm.image}
+                        onChange={(e) =>
+                          setPodcastForm({
+                            ...podcastForm,
+                            image: e.target.value,
+                          })
+                        }
+                        className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                      />
+
+                      <input
+                        type="text"
+                        placeholder="URL video YouTube / Spotify / altro"
+                        value={podcastForm.videoUrl}
+                        onChange={(e) =>
+                          setPodcastForm({
+                            ...podcastForm,
+                            videoUrl: e.target.value,
+                          })
+                        }
+                        className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                      />
+
+                      <button
+                        onClick={savePodcast}
+                        className="w-full px-8 py-4 rounded-full bg-black text-white font-black hover:scale-[1.02] transition"
+                      >
+                        {editingPodcastId
+                          ? "Salva podcast"
+                          : "Pubblica podcast"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {podcasts.map((podcast) => (
+                      <div
+                        key={podcast.id}
+                        className="p-6 rounded-[2rem] bg-white/5 border border-white/10"
+                      >
+                        {podcast.image && (
+                          <img
+                            src={podcast.image}
+                            alt={podcast.title}
+                            className="w-full h-52 object-cover rounded-2xl mb-6"
+                          />
+                        )}
+
+                        <p className="uppercase tracking-[0.25em] text-white/40 text-xs mb-3">
+                          {podcast.category}
+                        </p>
+
+                        <h3 className="text-2xl font-black mb-3">
+                          {podcast.title}
+                        </h3>
+
+                        <p className="text-white/50 mb-6">{podcast.desc}</p>
+
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => startEditPodcast(podcast)}
+                            className="px-5 py-3 rounded-full bg-white text-black font-bold"
+                          >
+                            Modifica
+                          </button>
+
+                          <button
+                            onClick={() => deletePodcast(podcast.id)}
+                            className="px-5 py-3 rounded-full border border-red-400/40 text-red-300 font-bold"
+                          >
+                            Elimina
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -558,7 +767,7 @@ export default function App() {
       <footer className="px-6 py-8 border-t border-white/10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-4 text-sm text-white/40">
           <p>© 2026 Edoardo Massetti</p>
-          <p>Giornalismo moderno • Podcast • Editoriale</p>
+          <p>Giornalismo moderno • Video Podcast • Editoriale</p>
         </div>
       </footer>
     </main>
