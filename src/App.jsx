@@ -154,19 +154,26 @@ export default function App() {
           </motion.h1>
 
           <div className="hidden md:flex gap-8 text-sm text-white/60">
-            <a href="#stories" className="hover:text-white transition">
-              Articoli
-            </a>
-            <a href="#podcast" className="hover:text-white transition">
-              Podcast
-            </a>
-            <a href="#register" className="hover:text-white transition">
-              Registrati
-            </a>
-            <a href="#admin" className="hover:text-white transition">
-              Admin
-            </a>
-          </div>
+  <a href="#" className="hover:text-white transition">
+    Home
+  </a>
+
+  <a href="#stories" className="hover:text-white transition">
+    Articoli
+  </a>
+
+  <a href="#podcast" className="hover:text-white transition">
+    Podcast
+  </a>
+
+  <a href="#register" className="hover:text-white transition">
+    Registrati
+  </a>
+
+  <a href="#admin" className="hover:text-white transition">
+    Admin
+  </a>
+</div>
         </div>
       </nav>
 
