@@ -8,35 +8,51 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore"
+
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
 } from "firebase/auth"
+
 import { db, auth } from "./firebase"
 
 export default function App() {
   const [stories, setStories] = useState([])
   const [podcasts, setPodcasts] = useState([])
+
+  const [selectedArticle, setSelectedArticle] = useState(null)
+  const [selectedPodcast, setSelectedPodcast] = useState(null)
+
   const [editingId, setEditingId] = useState(null)
   const [editingPodcastId, setEditingPodcastId] = useState(null)
+
   const [user, setUser] = useState(null)
   const [message, setMessage] = useState("")
 
-  const [loginForm, setLoginForm] = useState({ email: "", password: "" })
-  const [registerForm, setRegisterForm] = useState({ email: "", password: "" })
+  const [loginForm, setLoginForm] = useState({
+    email: "",
+    password: "",
+  })
+
+  const [registerForm, setRegisterForm] = useState({
+    email: "",
+    password: "",
+  })
 
   const [form, setForm] = useState({
     tag: "",
     title: "",
     desc: "",
+    content: "",
   })
 
   const [podcastForm, setPodcastForm] = useState({
     category: "",
     title: "",
     desc: "",
+    content: "",
     image: "",
     videoUrl: "",
   })
@@ -46,12 +62,24 @@ export default function App() {
 
   async function loadStories() {
     const data = await getDocs(articlesCollection)
-    setStories(data.docs.map((item) => ({ id: item.id, ...item.data() })))
+
+    setStories(
+      data.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }))
+    )
   }
 
   async function loadPodcasts() {
     const data = await getDocs(podcastsCollection)
-    setPodcasts(data.docs.map((item) => ({ id: item.id, ...item.data() })))
+
+    setPodcasts(
+      data.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }))
+    )
   }
 
   useEffect(() => {
@@ -68,11 +96,16 @@ export default function App() {
   async function loginAdmin() {
     try {
       setMessage("")
-      await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password)
-      setLoginForm({ email: "", password: "" })
+
+      await signInWithEmailAndPassword(
+        auth,
+        loginForm.email,
+        loginForm.password
+      )
+
       setMessage("Accesso effettuato.")
     } catch {
-      setMessage("Email o password non corretti.")
+      setMessage("Credenziali non valide.")
     }
   }
 
@@ -80,21 +113,15 @@ export default function App() {
     try {
       setMessage("")
 
-      if (!registerForm.email || !registerForm.password) {
-        setMessage("Inserisci email e password.")
-        return
-      }
-
       await createUserWithEmailAndPassword(
         auth,
         registerForm.email,
         registerForm.password
       )
 
-      setRegisterForm({ email: "", password: "" })
       setMessage("Registrazione completata.")
     } catch {
-      setMessage("Errore durante la registrazione.")
+      setMessage("Errore registrazione.")
     }
   }
 
@@ -106,59 +133,56 @@ export default function App() {
   async function saveStory() {
     if (!user) return
 
-    if (!form.tag || !form.title || !form.desc) {
-      setMessage("Compila tutti i campi dell'articolo.")
-      return
-    }
-
     if (editingId) {
       await updateDoc(doc(db, "articles", editingId), form)
-      setEditingId(null)
+
       setMessage("Articolo modificato.")
+      setEditingId(null)
     } else {
       await addDoc(articlesCollection, form)
+
       setMessage("Articolo pubblicato.")
     }
 
-    setForm({ tag: "", title: "", desc: "" })
+    setForm({
+      tag: "",
+      title: "",
+      desc: "",
+      content: "",
+    })
+
+    loadStories()
+  }
+
+  async function deleteStory(id) {
+    await deleteDoc(doc(db, "articles", id))
+
+    setMessage("Articolo eliminato.")
     loadStories()
   }
 
   function startEdit(story) {
     setEditingId(story.id)
+
     setForm({
       tag: story.tag,
       title: story.title,
       desc: story.desc,
+      content: story.content,
     })
-  }
-
-  async function deleteStory(id) {
-    if (!user) return
-    await deleteDoc(doc(db, "articles", id))
-    setMessage("Articolo eliminato.")
-    loadStories()
   }
 
   async function savePodcast() {
     if (!user) return
 
-    if (
-      !podcastForm.category ||
-      !podcastForm.title ||
-      !podcastForm.desc ||
-      !podcastForm.image
-    ) {
-      setMessage("Compila categoria, titolo, descrizione e immagine podcast.")
-      return
-    }
-
     if (editingPodcastId) {
       await updateDoc(doc(db, "podcasts", editingPodcastId), podcastForm)
-      setEditingPodcastId(null)
+
       setMessage("Podcast modificato.")
+      setEditingPodcastId(null)
     } else {
       await addDoc(podcastsCollection, podcastForm)
+
       setMessage("Podcast pubblicato.")
     }
 
@@ -166,6 +190,7 @@ export default function App() {
       category: "",
       title: "",
       desc: "",
+      content: "",
       image: "",
       videoUrl: "",
     })
@@ -173,603 +198,204 @@ export default function App() {
     loadPodcasts()
   }
 
+  async function deletePodcast(id) {
+    await deleteDoc(doc(db, "podcasts", id))
+
+    setMessage("Podcast eliminato.")
+    loadPodcasts()
+  }
+
   function startEditPodcast(podcast) {
     setEditingPodcastId(podcast.id)
+
     setPodcastForm({
-      category: podcast.category || "",
-      title: podcast.title || "",
-      desc: podcast.desc || "",
-      image: podcast.image || "",
-      videoUrl: podcast.videoUrl || "",
+      category: podcast.category,
+      title: podcast.title,
+      desc: podcast.desc,
+      content: podcast.content,
+      image: podcast.image,
+      videoUrl: podcast.videoUrl,
     })
   }
 
-  async function deletePodcast(id) {
-    if (!user) return
-    await deleteDoc(doc(db, "podcasts", id))
-    setMessage("Podcast eliminato.")
-    loadPodcasts()
+  if (selectedArticle) {
+    return (
+      <main className="min-h-screen bg-[#080808] text-white px-6 py-20">
+        <div className="max-w-4xl mx-auto">
+          <button
+            onClick={() => setSelectedArticle(null)}
+            className="mb-10 px-6 py-3 rounded-full border border-white/20 hover:bg-white/10 transition"
+          >
+            ← Torna alla home
+          </button>
+
+          <p className="uppercase tracking-[0.35em] text-white/40 text-sm mb-6">
+            {selectedArticle.tag}
+          </p>
+
+          <h1 className="text-5xl md:text-7xl font-black mb-10 leading-tight">
+            {selectedArticle.title}
+          </h1>
+
+          <p className="text-xl text-white/50 leading-relaxed mb-12">
+            {selectedArticle.desc}
+          </p>
+
+          <div className="text-lg leading-relaxed text-white/80 whitespace-pre-line">
+            {selectedArticle.content}
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  if (selectedPodcast) {
+    return (
+      <main className="min-h-screen bg-[#080808] text-white px-6 py-20">
+        <div className="max-w-5xl mx-auto">
+          <button
+            onClick={() => setSelectedPodcast(null)}
+            className="mb-10 px-6 py-3 rounded-full border border-white/20 hover:bg-white/10 transition"
+          >
+            ← Torna alla home
+          </button>
+
+          <p className="uppercase tracking-[0.35em] text-white/40 text-sm mb-6">
+            {selectedPodcast.category}
+          </p>
+
+          <h1 className="text-5xl md:text-7xl font-black mb-10 leading-tight">
+            {selectedPodcast.title}
+          </h1>
+
+          <div className="aspect-video rounded-[2rem] overflow-hidden mb-10">
+            <iframe
+              src={selectedPodcast.videoUrl}
+              title={selectedPodcast.title}
+              className="w-full h-full"
+              allowFullScreen
+            />
+          </div>
+
+          <p className="text-xl text-white/50 leading-relaxed mb-12">
+            {selectedPodcast.desc}
+          </p>
+
+          <div className="text-lg leading-relaxed text-white/80 whitespace-pre-line">
+            {selectedPodcast.content}
+          </div>
+        </div>
+      </main>
+    )
   }
 
   return (
     <main className="min-h-screen bg-[#080808] text-white overflow-hidden">
       <nav className="fixed top-0 left-0 w-full z-50 border-b border-white/10 bg-black/35 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
-          <motion.h1
-            initial={{ opacity: 0, y: -14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="text-lg md:text-2xl font-black tracking-tight"
-          >
+          <h1 className="text-lg md:text-2xl font-black">
             FattiDiretti
-          </motion.h1>
+          </h1>
 
           <div className="hidden md:flex gap-8 text-sm text-white/60">
-            <a href="#" className="hover:text-white transition">
-              Home
-            </a>
-            <a href="#stories" className="hover:text-white transition">
-              Articoli
-            </a>
-            <a href="#podcast" className="hover:text-white transition">
-              Podcast
-            </a>
-            <a href="#register" className="hover:text-white transition">
-              Registrati
-            </a>
-            <a href="#admin" className="hover:text-white transition">
-              Admin
-            </a>
+            <a href="#">Home</a>
+            <a href="#stories">Articoli</a>
+            <a href="#podcast">Podcast</a>
+            <a href="#register">Registrati</a>
+            <a href="#admin">Admin</a>
           </div>
         </div>
       </nav>
 
       <section className="relative min-h-screen flex items-center px-6 pt-32">
-        <motion.div
-          animate={{ scale: [1, 1.15, 1], opacity: [0.45, 0.75, 0.45] }}
-          transition={{ duration: 9, repeat: Infinity }}
-          className="absolute inset-0 bg-[radial-gradient(circle_at_65%_25%,rgba(255,255,255,0.18),transparent_36%)]"
-        />
+        <div className="relative max-w-7xl mx-auto">
+          <p className="uppercase tracking-[0.45em] text-white/45 text-xs md:text-sm mb-7">
+            Giornalismo • Podcast • Reportage
+          </p>
 
-        <div className="relative max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-          <motion.div
-            initial={{ opacity: 0, y: 55 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9 }}
-          >
-            <p className="uppercase tracking-[0.45em] text-white/45 text-xs md:text-sm mb-7">
-              Giornalista • Cronista • Storyteller
-            </p>
+          <h2 className="text-6xl md:text-8xl font-black leading-[0.88] mb-8">
+            FATTI
+            <span className="block text-white/35">
+              DIRETTI
+            </span>
+          </h2>
 
-            <h2 className="text-6xl md:text-8xl font-black leading-[0.88] mb-8">
-              Eleganza
-              <span className="block text-white/35">nella forma.</span>
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-white/20">
-                Verità nel colpo.
-              </span>
-            </h2>
-
-            <p className="text-lg md:text-xl text-white/65 max-w-xl mb-10 leading-relaxed">
-              FattiDiretti racconta storie, persone e realtà nascoste con
-              uno stile moderno, diretto e visivamente potente.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <a
-                href="#stories"
-                className="px-8 py-4 rounded-full bg-white text-black font-black text-center hover:scale-105 transition"
-              >
-                Leggi articoli
-              </a>
-
-              <a
-                href="#podcast"
-                className="px-8 py-4 rounded-full border border-white/20 text-center hover:bg-white/10 transition"
-              >
-                Guarda podcast
-              </a>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92, y: 45 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.25 }}
-            className="relative"
-          >
-            <div className="aspect-[4/5] rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-white/18 via-white/7 to-white/3 shadow-2xl overflow-hidden flex items-end">
-              <div className="p-8">
-                <p className="text-6xl md:text-8xl font-black text-white/10">
-                  FATTIDIRETTI
-                </p>
-                <p className="text-white/55 mt-4">
-                  Immagine editoriale in arrivo.
-                </p>
-              </div>
-            </div>
-
-            <div className="absolute -bottom-8 -left-4 md:-left-8 bg-white text-black p-6 rounded-3xl shadow-2xl max-w-xs">
-              <p className="text-xs font-black uppercase text-black/45 tracking-[0.25em]">
-                Contenuti pubblicati
-              </p>
-              <h3 className="text-4xl font-black mt-3">
-                {stories.length + podcasts.length}
-              </h3>
-            </div>
-          </motion.div>
+          <p className="text-lg md:text-xl text-white/65 max-w-2xl mb-10 leading-relaxed">
+            FattiDiretti racconta storie, reportage, podcast e realtà
+            nascoste con uno stile moderno, aggressivo ed editoriale.
+          </p>
         </div>
       </section>
 
       <section id="stories" className="px-6 py-28 bg-white text-black">
         <div className="max-w-7xl mx-auto">
-          <p className="uppercase tracking-[0.35em] text-black/40 text-sm">
-            Selected Articles
-          </p>
-
-          <h2 className="text-5xl md:text-7xl font-black mt-4 mb-14">
-            Articoli in evidenza
+          <h2 className="text-5xl md:text-7xl font-black mb-14">
+            Articoli
           </h2>
 
-          {stories.length === 0 ? (
-            <p className="text-black/50 text-xl">
-              Nessun articolo pubblicato.
-            </p>
-          ) : (
-            <div className="grid md:grid-cols-3 gap-6">
-              {stories.map((story) => (
-                <motion.article
-                  key={story.id}
-                  whileHover={{ y: -12, scale: 1.02 }}
-                  transition={{ duration: 0.4 }}
-                  className="group p-8 rounded-[2rem] bg-black text-white min-h-[360px] flex flex-col justify-between cursor-pointer border border-white/10 hover:border-white/30 transition"
-                >
-                  <div>
-                    <p className="text-white/40 text-sm mb-5 uppercase tracking-[0.25em]">
-                      {story.tag}
-                    </p>
-
-                    <h3 className="text-3xl font-black leading-tight">
-                      {story.title}
-                    </h3>
-                  </div>
-
-                  <p className="text-white/50 mt-8 leading-relaxed">
-                    {story.desc}
-                  </p>
-                </motion.article>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section
-        id="podcast"
-        className="px-6 py-28 border-t border-white/10 bg-[#080808]"
-      >
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-14">
-            <div>
-              <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
-                Video Podcast
-              </p>
-
-              <h2 className="text-5xl md:text-7xl font-black mt-4">
-                Podcast cinematografici.
-              </h2>
-            </div>
-
-            <p className="text-white/50 max-w-xl leading-relaxed">
-              Approfondimenti, reportage, interviste e contenuti esclusivi
-              raccontati attraverso video podcast moderni e immersivi.
-            </p>
-          </div>
-
-          {podcasts.length === 0 ? (
-            <p className="text-white/50 text-xl">
-              Nessun podcast pubblicato.
-            </p>
-          ) : (
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-              {podcasts.map((podcast) => (
-                <motion.div
-                  key={podcast.id}
-                  whileHover={{ y: -10, scale: 1.02 }}
-                  transition={{ duration: 0.4 }}
-                  className="rounded-[2rem] overflow-hidden bg-white/5 border border-white/10 hover:border-white/30 transition"
-                >
-                  <div className="aspect-video bg-black relative overflow-hidden">
-                    <img
-                      src={podcast.image}
-                      alt={podcast.title}
-                      className="w-full h-full object-cover opacity-80"
-                    />
-
-                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                      <a
-                        href={podcast.videoUrl || "#"}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-20 h-20 rounded-full bg-white text-black text-2xl font-black hover:scale-110 transition flex items-center justify-center"
-                      >
-                        ▶
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="p-7">
-                    <p className="uppercase tracking-[0.25em] text-white/40 text-xs mb-4">
-                      {podcast.category}
-                    </p>
-
-                    <h3 className="text-3xl font-black mb-5 leading-tight">
-                      {podcast.title}
-                    </h3>
-
-                    <p className="text-white/50 leading-relaxed mb-8">
-                      {podcast.desc}
-                    </p>
-
-                    <a
-                      href={podcast.videoUrl || "#"}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-block px-6 py-3 rounded-full bg-white text-black font-black hover:scale-105 transition"
-                    >
-                      Guarda episodio
-                    </a>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section id="register" className="px-6 py-28 bg-white text-black">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-10 items-center">
-          <div>
-            <p className="uppercase tracking-[0.35em] text-black/40 text-sm">
-              Community
-            </p>
-
-            <h2 className="text-5xl md:text-7xl font-black mt-4 mb-8">
-              Registrazione facoltativa.
-            </h2>
-
-            <p className="text-xl text-black/60 leading-relaxed">
-              Gli utenti possono registrarsi per ricevere aggiornamenti,
-              contenuti extra, podcast e futuri contenuti premium.
-            </p>
-          </div>
-
-          <div className="p-8 rounded-[2rem] bg-black text-white">
-            <h3 className="text-3xl font-black mb-6">Crea account</h3>
-
-            <div className="space-y-4">
-              <input
-                type="email"
-                placeholder="Email"
-                value={registerForm.email}
-                onChange={(e) =>
-                  setRegisterForm({ ...registerForm, email: e.target.value })
-                }
-                className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/10 outline-none"
-              />
-
-              <input
-                type="password"
-                placeholder="Password"
-                value={registerForm.password}
-                onChange={(e) =>
-                  setRegisterForm({
-                    ...registerForm,
-                    password: e.target.value,
-                  })
-                }
-                className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/10 outline-none"
-              />
-
-              <button
-                onClick={registerUser}
-                className="w-full px-8 py-4 rounded-full bg-white text-black font-black hover:scale-[1.02] transition"
+          <div className="grid md:grid-cols-3 gap-6">
+            {stories.map((story) => (
+              <motion.article
+                key={story.id}
+                whileHover={{ y: -12 }}
+                onClick={() => setSelectedArticle(story)}
+                className="cursor-pointer p-8 rounded-[2rem] bg-black text-white"
               >
-                Registrati
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section
-        id="admin"
-        className="px-6 py-28 bg-black border-t border-white/10"
-      >
-        <div className="max-w-7xl mx-auto">
-          <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
-            Area riservata
-          </p>
-
-          <h2 className="text-5xl md:text-7xl font-black mt-4 mb-10">
-            Admin
-          </h2>
-
-          {message && <p className="mb-8 text-white/70 font-bold">{message}</p>}
-
-          {!user ? (
-            <div className="max-w-xl p-8 rounded-[2rem] bg-white text-black">
-              <h3 className="text-3xl font-black mb-6">Login admin</h3>
-
-              <div className="space-y-4">
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={loginForm.email}
-                  onChange={(e) =>
-                    setLoginForm({ ...loginForm, email: e.target.value })
-                  }
-                  className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                />
-
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={loginForm.password}
-                  onChange={(e) =>
-                    setLoginForm({ ...loginForm, password: e.target.value })
-                  }
-                  className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                />
-
-                <button
-                  onClick={loginAdmin}
-                  className="w-full px-8 py-4 rounded-full bg-black text-white font-black hover:scale-[1.02] transition"
-                >
-                  Accedi
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <p className="text-white/50">
-                  Accesso effettuato come{" "}
-                  <span className="text-white font-bold">{user.email}</span>
+                <p className="text-white/40 mb-4 uppercase text-xs">
+                  {story.tag}
                 </p>
 
-                <button
-                  onClick={logoutAdmin}
-                  className="px-6 py-3 rounded-full border border-white/20 hover:bg-white/10 transition"
-                >
-                  Logout
-                </button>
-              </div>
+                <h3 className="text-3xl font-black mb-6">
+                  {story.title}
+                </h3>
 
-              <div className="grid lg:grid-cols-2 gap-8">
-                <div className="p-8 rounded-[2rem] bg-white text-black">
-                  <h3 className="text-3xl font-black mb-6">
-                    {editingId ? "Modifica articolo" : "Nuovo articolo"}
-                  </h3>
-
-                  <div className="space-y-4">
-                    <input
-                      type="text"
-                      placeholder="Categoria"
-                      value={form.tag}
-                      onChange={(e) =>
-                        setForm({ ...form, tag: e.target.value })
-                      }
-                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                    />
-
-                    <input
-                      type="text"
-                      placeholder="Titolo"
-                      value={form.title}
-                      onChange={(e) =>
-                        setForm({ ...form, title: e.target.value })
-                      }
-                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                    />
-
-                    <textarea
-                      rows="5"
-                      placeholder="Descrizione"
-                      value={form.desc}
-                      onChange={(e) =>
-                        setForm({ ...form, desc: e.target.value })
-                      }
-                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none resize-none"
-                    />
-
-                    <button
-                      onClick={saveStory}
-                      className="w-full px-8 py-4 rounded-full bg-black text-white font-black hover:scale-[1.02] transition"
-                    >
-                      {editingId ? "Salva modifiche" : "Pubblica articolo"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {stories.map((story) => (
-                    <div
-                      key={story.id}
-                      className="p-6 rounded-[2rem] bg-white/5 border border-white/10"
-                    >
-                      <p className="text-white/40 uppercase tracking-[0.25em] text-xs mb-3">
-                        {story.tag}
-                      </p>
-
-                      <h3 className="text-2xl font-black mb-3">
-                        {story.title}
-                      </h3>
-
-                      <p className="text-white/50 mb-6">{story.desc}</p>
-
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => startEdit(story)}
-                          className="px-5 py-3 rounded-full bg-white text-black font-bold"
-                        >
-                          Modifica
-                        </button>
-
-                        <button
-                          onClick={() => deleteStory(story.id)}
-                          className="px-5 py-3 rounded-full border border-red-400/40 text-red-300 font-bold"
-                        >
-                          Elimina
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-20">
-                <h2 className="text-4xl md:text-5xl font-black mb-10">
-                  Gestione Video Podcast
-                </h2>
-
-                <div className="grid lg:grid-cols-2 gap-8">
-                  <div className="p-8 rounded-[2rem] bg-white text-black">
-                    <h3 className="text-3xl font-black mb-6">
-                      {editingPodcastId ? "Modifica podcast" : "Nuovo podcast"}
-                    </h3>
-
-                    <div className="space-y-4">
-                      <input
-                        type="text"
-                        placeholder="Categoria podcast"
-                        value={podcastForm.category}
-                        onChange={(e) =>
-                          setPodcastForm({
-                            ...podcastForm,
-                            category: e.target.value,
-                          })
-                        }
-                        className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                      />
-
-                      <input
-                        type="text"
-                        placeholder="Titolo podcast"
-                        value={podcastForm.title}
-                        onChange={(e) =>
-                          setPodcastForm({
-                            ...podcastForm,
-                            title: e.target.value,
-                          })
-                        }
-                        className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                      />
-
-                      <textarea
-                        rows="4"
-                        placeholder="Descrizione podcast"
-                        value={podcastForm.desc}
-                        onChange={(e) =>
-                          setPodcastForm({
-                            ...podcastForm,
-                            desc: e.target.value,
-                          })
-                        }
-                        className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none resize-none"
-                      />
-
-                      <input
-                        type="text"
-                        placeholder="URL immagine copertina"
-                        value={podcastForm.image}
-                        onChange={(e) =>
-                          setPodcastForm({
-                            ...podcastForm,
-                            image: e.target.value,
-                          })
-                        }
-                        className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                      />
-
-                      <input
-                        type="text"
-                        placeholder="URL video YouTube / Spotify / altro"
-                        value={podcastForm.videoUrl}
-                        onChange={(e) =>
-                          setPodcastForm({
-                            ...podcastForm,
-                            videoUrl: e.target.value,
-                          })
-                        }
-                        className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                      />
-
-                      <button
-                        onClick={savePodcast}
-                        className="w-full px-8 py-4 rounded-full bg-black text-white font-black hover:scale-[1.02] transition"
-                      >
-                        {editingPodcastId
-                          ? "Salva podcast"
-                          : "Pubblica podcast"}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    {podcasts.map((podcast) => (
-                      <div
-                        key={podcast.id}
-                        className="p-6 rounded-[2rem] bg-white/5 border border-white/10"
-                      >
-                        {podcast.image && (
-                          <img
-                            src={podcast.image}
-                            alt={podcast.title}
-                            className="w-full h-52 object-cover rounded-2xl mb-6"
-                          />
-                        )}
-
-                        <p className="uppercase tracking-[0.25em] text-white/40 text-xs mb-3">
-                          {podcast.category}
-                        </p>
-
-                        <h3 className="text-2xl font-black mb-3">
-                          {podcast.title}
-                        </h3>
-
-                        <p className="text-white/50 mb-6">{podcast.desc}</p>
-
-                        <div className="flex gap-3">
-                          <button
-                            onClick={() => startEditPodcast(podcast)}
-                            className="px-5 py-3 rounded-full bg-white text-black font-bold"
-                          >
-                            Modifica
-                          </button>
-
-                          <button
-                            onClick={() => deletePodcast(podcast.id)}
-                            className="px-5 py-3 rounded-full border border-red-400/40 text-red-300 font-bold"
-                          >
-                            Elimina
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+                <p className="text-white/50">
+                  {story.desc}
+                </p>
+              </motion.article>
+            ))}
+          </div>
         </div>
       </section>
 
-      <footer className="px-6 py-8 border-t border-white/10">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-4 text-sm text-white/40">
-          <p>© 2026 FattiDiretti</p>
-          <p>Giornalismo moderno • Video Podcast • Editoriale</p>
+      <section id="podcast" className="px-6 py-28 bg-black">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-5xl md:text-7xl font-black mb-14">
+            Video Podcast
+          </h2>
+
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
+            {podcasts.map((podcast) => (
+              <motion.div
+                key={podcast.id}
+                whileHover={{ y: -10 }}
+                onClick={() => setSelectedPodcast(podcast)}
+                className="cursor-pointer rounded-[2rem] overflow-hidden bg-white/5 border border-white/10"
+              >
+                <img
+                  src={podcast.image}
+                  alt={podcast.title}
+                  className="w-full aspect-video object-cover"
+                />
+
+                <div className="p-7">
+                  <p className="uppercase tracking-[0.25em] text-white/40 text-xs mb-4">
+                    {podcast.category}
+                  </p>
+
+                  <h3 className="text-3xl font-black mb-5">
+                    {podcast.title}
+                  </h3>
+
+                  <p className="text-white/50">
+                    {podcast.desc}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
-      </footer>
+      </section>
     </main>
   )
 }
