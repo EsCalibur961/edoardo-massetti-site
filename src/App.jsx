@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore"
 import {
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
 } from "firebase/auth"
@@ -19,15 +20,34 @@ export default function App() {
   const [stories, setStories] = useState([])
   const [editingId, setEditingId] = useState(null)
   const [user, setUser] = useState(null)
-  const [loginForm, setLoginForm] = useState({ email: "", password: "" })
-  const [loginError, setLoginError] = useState("")
-  const [form, setForm] = useState({ tag: "", title: "", desc: "" })
+  const [message, setMessage] = useState("")
+
+  const [loginForm, setLoginForm] = useState({
+    email: "",
+    password: "",
+  })
+
+  const [registerForm, setRegisterForm] = useState({
+    email: "",
+    password: "",
+  })
+
+  const [form, setForm] = useState({
+    tag: "",
+    title: "",
+    desc: "",
+  })
 
   const storiesCollection = collection(db, "articles")
 
   async function loadStories() {
     const data = await getDocs(storiesCollection)
-    setStories(data.docs.map((item) => ({ id: item.id, ...item.data() })))
+    const articles = data.docs.map((item) => ({
+      id: item.id,
+      ...item.data(),
+    }))
+
+    setStories(articles)
   }
 
   useEffect(() => {
@@ -42,31 +62,61 @@ export default function App() {
 
   async function loginAdmin() {
     try {
-      setLoginError("")
+      setMessage("")
       await signInWithEmailAndPassword(
         auth,
         loginForm.email,
         loginForm.password
       )
       setLoginForm({ email: "", password: "" })
+      setMessage("Accesso effettuato.")
     } catch {
-      setLoginError("Email o password non corretti.")
+      setMessage("Email o password non corretti.")
+    }
+  }
+
+  async function registerUser() {
+    try {
+      setMessage("")
+
+      if (!registerForm.email || !registerForm.password) {
+        setMessage("Inserisci email e password.")
+        return
+      }
+
+      await createUserWithEmailAndPassword(
+        auth,
+        registerForm.email,
+        registerForm.password
+      )
+
+      setRegisterForm({ email: "", password: "" })
+      setMessage("Registrazione completata.")
+    } catch {
+      setMessage("Errore durante la registrazione.")
     }
   }
 
   async function logoutAdmin() {
     await signOut(auth)
+    setMessage("Logout effettuato.")
   }
 
   async function saveStory() {
     if (!user) return
-    if (!form.tag || !form.title || !form.desc) return
+
+    if (!form.tag || !form.title || !form.desc) {
+      setMessage("Compila tutti i campi dell'articolo.")
+      return
+    }
 
     if (editingId) {
       await updateDoc(doc(db, "articles", editingId), form)
       setEditingId(null)
+      setMessage("Articolo modificato.")
     } else {
       await addDoc(storiesCollection, form)
+      setMessage("Articolo pubblicato.")
     }
 
     setForm({ tag: "", title: "", desc: "" })
@@ -84,7 +134,9 @@ export default function App() {
 
   async function deleteStory(id) {
     if (!user) return
+
     await deleteDoc(doc(db, "articles", id))
+    setMessage("Articolo eliminato.")
     loadStories()
   }
 
@@ -102,23 +154,19 @@ export default function App() {
           </motion.h1>
 
           <div className="hidden md:flex gap-8 text-sm text-white/60">
-            <a href="#about" className="hover:text-white transition">
-              Profilo
-            </a>
             <a href="#stories" className="hover:text-white transition">
               Articoli
+            </a>
+            <a href="#podcast" className="hover:text-white transition">
+              Podcast
+            </a>
+            <a href="#register" className="hover:text-white transition">
+              Registrati
             </a>
             <a href="#admin" className="hover:text-white transition">
               Admin
             </a>
           </div>
-
-          <a
-            href="#admin"
-            className="px-5 py-2 rounded-full bg-white text-black font-bold text-sm hover:scale-105 transition"
-          >
-            Area Admin
-          </a>
         </div>
       </nav>
 
@@ -152,12 +200,21 @@ export default function App() {
               uno stile moderno, diretto e visivamente potente.
             </p>
 
-            <a
-              href="#stories"
-              className="inline-block px-8 py-4 rounded-full bg-white text-black font-black hover:scale-105 transition"
-            >
-              Leggi gli articoli
-            </a>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <a
+                href="#stories"
+                className="px-8 py-4 rounded-full bg-white text-black font-black text-center hover:scale-105 transition"
+              >
+                Leggi articoli
+              </a>
+
+              <a
+                href="#podcast"
+                className="px-8 py-4 rounded-full border border-white/20 text-center hover:bg-white/10 transition"
+              >
+                Ascolta podcast
+              </a>
+            </div>
           </motion.div>
 
           <motion.div
@@ -187,27 +244,6 @@ export default function App() {
         </div>
       </section>
 
-      <section id="about" className="px-6 py-28 border-t border-white/10">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-12">
-          <div>
-            <p className="text-white/40 uppercase tracking-[0.35em] text-sm">
-              Profilo
-            </p>
-            <h2 className="text-4xl md:text-5xl font-black mt-5 leading-tight">
-              Scrittura pulita.
-              <br />
-              Sguardo tagliente.
-            </h2>
-          </div>
-
-          <p className="md:col-span-2 text-2xl md:text-3xl text-white/65 leading-relaxed">
-            Un giornalismo contemporaneo che unisce eleganza narrativa,
-            precisione e impatto visivo. Ogni contenuto nasce per informare,
-            colpire e restare.
-          </p>
-        </div>
-      </section>
-
       <section id="stories" className="px-6 py-28 bg-white text-black">
         <div className="max-w-7xl mx-auto">
           <p className="uppercase tracking-[0.35em] text-black/40 text-sm">
@@ -229,25 +265,21 @@ export default function App() {
                   key={story.id}
                   whileHover={{ y: -12, scale: 1.02 }}
                   transition={{ duration: 0.4 }}
-                  className="group p-8 rounded-[2rem] bg-black text-white min-h-[360px] flex flex-col justify-between cursor-pointer border border-white/10 hover:border-white/30 transition overflow-hidden relative"
+                  className="group p-8 rounded-[2rem] bg-black text-white min-h-[360px] flex flex-col justify-between cursor-pointer border border-white/10 hover:border-white/30 transition"
                 >
                   <div>
                     <p className="text-white/40 text-sm mb-5 uppercase tracking-[0.25em]">
                       {story.tag}
                     </p>
+
                     <h3 className="text-3xl font-black leading-tight">
                       {story.title}
                     </h3>
                   </div>
 
-                  <div>
-                    <p className="text-white/50 mb-8 leading-relaxed">
-                      {story.desc}
-                    </p>
-                    <p className="text-white/50 group-hover:text-white transition font-bold">
-                      Leggi articolo →
-                    </p>
-                  </div>
+                  <p className="text-white/50 mt-8 leading-relaxed">
+                    {story.desc}
+                  </p>
                 </motion.article>
               ))}
             </div>
@@ -255,7 +287,104 @@ export default function App() {
         </div>
       </section>
 
-      <section id="admin" className="px-6 py-28 bg-[#080808]">
+      <section id="podcast" className="px-6 py-28 border-t border-white/10 bg-[#080808]">
+        <div className="max-w-7xl mx-auto">
+          <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
+            Podcast
+          </p>
+
+          <h2 className="text-5xl md:text-7xl font-black mt-4 mb-10">
+            Voci, storie e approfondimenti.
+          </h2>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((item) => (
+              <motion.div
+                key={item}
+                whileHover={{ y: -10, scale: 1.02 }}
+                className="p-8 rounded-[2rem] bg-white/5 border border-white/10 hover:border-white/30 transition"
+              >
+                <p className="uppercase tracking-[0.25em] text-white/40 text-xs mb-4">
+                  Episodio {item}
+                </p>
+
+                <h3 className="text-3xl font-black mb-5">
+                  Dentro la notizia
+                </h3>
+
+                <p className="text-white/50 mb-8 leading-relaxed">
+                  Un podcast editoriale tra attualità, storie reali e
+                  retroscena.
+                </p>
+
+                <button className="px-6 py-3 rounded-full bg-white text-black font-black hover:scale-105 transition">
+                  Ascolta
+                </button>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="register" className="px-6 py-28 bg-white text-black">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-10 items-center">
+          <div>
+            <p className="uppercase tracking-[0.35em] text-black/40 text-sm">
+              Community
+            </p>
+
+            <h2 className="text-5xl md:text-7xl font-black mt-4 mb-8">
+              Registrazione facoltativa.
+            </h2>
+
+            <p className="text-xl text-black/60 leading-relaxed">
+              Gli utenti possono registrarsi per ricevere aggiornamenti,
+              contenuti extra, podcast e futuri contenuti premium.
+            </p>
+          </div>
+
+          <div className="p-8 rounded-[2rem] bg-black text-white">
+            <h3 className="text-3xl font-black mb-6">Crea account</h3>
+
+            <div className="space-y-4">
+              <input
+                type="email"
+                placeholder="Email"
+                value={registerForm.email}
+                onChange={(e) =>
+                  setRegisterForm({
+                    ...registerForm,
+                    email: e.target.value,
+                  })
+                }
+                className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/10 outline-none"
+              />
+
+              <input
+                type="password"
+                placeholder="Password"
+                value={registerForm.password}
+                onChange={(e) =>
+                  setRegisterForm({
+                    ...registerForm,
+                    password: e.target.value,
+                  })
+                }
+                className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/10 outline-none"
+              />
+
+              <button
+                onClick={registerUser}
+                className="w-full px-8 py-4 rounded-full bg-white text-black font-black hover:scale-[1.02] transition"
+              >
+                Registrati
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="admin" className="px-6 py-28 bg-black border-t border-white/10">
         <div className="max-w-7xl mx-auto">
           <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
             Area riservata
@@ -265,19 +394,26 @@ export default function App() {
             Admin Edoardo
           </h2>
 
+          {message && (
+            <p className="mb-8 text-white/70 font-bold">{message}</p>
+          )}
+
           {!user ? (
-            <div className="max-w-xl p-6 md:p-8 rounded-[2rem] bg-white text-black">
-              <h3 className="text-3xl font-black mb-6">Accesso admin</h3>
+            <div className="max-w-xl p-8 rounded-[2rem] bg-white text-black">
+              <h3 className="text-3xl font-black mb-6">Login admin</h3>
 
               <div className="space-y-4">
                 <input
                   type="email"
-                  placeholder="Email admin"
+                  placeholder="Email"
                   value={loginForm.email}
                   onChange={(e) =>
-                    setLoginForm({ ...loginForm, email: e.target.value })
+                    setLoginForm({
+                      ...loginForm,
+                      email: e.target.value,
+                    })
                   }
-                  className="w-full px-5 py-4 rounded-2xl bg-black/5 outline-none border border-black/10 focus:border-black"
+                  className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                 />
 
                 <input
@@ -285,26 +421,25 @@ export default function App() {
                   placeholder="Password"
                   value={loginForm.password}
                   onChange={(e) =>
-                    setLoginForm({ ...loginForm, password: e.target.value })
+                    setLoginForm({
+                      ...loginForm,
+                      password: e.target.value,
+                    })
                   }
-                  className="w-full px-5 py-4 rounded-2xl bg-black/5 outline-none border border-black/10 focus:border-black"
+                  className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                 />
-
-                {loginError && (
-                  <p className="text-red-600 font-bold">{loginError}</p>
-                )}
 
                 <button
                   onClick={loginAdmin}
                   className="w-full px-8 py-4 rounded-full bg-black text-white font-black hover:scale-[1.02] transition"
                 >
-                  Entra
+                  Accedi
                 </button>
               </div>
             </div>
           ) : (
             <div>
-              <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <p className="text-white/50">
                   Accesso effettuato come{" "}
                   <span className="text-white font-bold">{user.email}</span>
@@ -312,14 +447,14 @@ export default function App() {
 
                 <button
                   onClick={logoutAdmin}
-                  className="px-6 py-3 rounded-full border border-white/20 text-white font-bold hover:bg-white/10 transition"
+                  className="px-6 py-3 rounded-full border border-white/20 hover:bg-white/10 transition"
                 >
-                  Esci
+                  Logout
                 </button>
               </div>
 
               <div className="grid lg:grid-cols-2 gap-8">
-                <div className="p-6 md:p-8 rounded-[2rem] bg-white text-black">
+                <div className="p-8 rounded-[2rem] bg-white text-black">
                   <h3 className="text-3xl font-black mb-6">
                     {editingId ? "Modifica articolo" : "Nuovo articolo"}
                   </h3>
@@ -327,39 +462,48 @@ export default function App() {
                   <div className="space-y-4">
                     <input
                       type="text"
-                      placeholder="Categoria / Tag"
+                      placeholder="Categoria"
                       value={form.tag}
                       onChange={(e) =>
-                        setForm({ ...form, tag: e.target.value })
+                        setForm({
+                          ...form,
+                          tag: e.target.value,
+                        })
                       }
-                      className="w-full px-5 py-4 rounded-2xl bg-black/5 outline-none border border-black/10 focus:border-black"
+                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                     />
 
                     <input
                       type="text"
-                      placeholder="Titolo articolo"
+                      placeholder="Titolo"
                       value={form.title}
                       onChange={(e) =>
-                        setForm({ ...form, title: e.target.value })
+                        setForm({
+                          ...form,
+                          title: e.target.value,
+                        })
                       }
-                      className="w-full px-5 py-4 rounded-2xl bg-black/5 outline-none border border-black/10 focus:border-black"
+                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                     />
 
                     <textarea
-                      placeholder="Descrizione breve"
+                      rows="5"
+                      placeholder="Descrizione"
                       value={form.desc}
                       onChange={(e) =>
-                        setForm({ ...form, desc: e.target.value })
+                        setForm({
+                          ...form,
+                          desc: e.target.value,
+                        })
                       }
-                      rows="5"
-                      className="w-full px-5 py-4 rounded-2xl bg-black/5 outline-none border border-black/10 focus:border-black resize-none"
+                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none resize-none"
                     />
 
                     <button
                       onClick={saveStory}
                       className="w-full px-8 py-4 rounded-full bg-black text-white font-black hover:scale-[1.02] transition"
                     >
-                      {editingId ? "Salva modifiche" : "Aggiungi articolo"}
+                      {editingId ? "Salva modifiche" : "Pubblica articolo"}
                     </button>
                   </div>
                 </div>
@@ -383,14 +527,14 @@ export default function App() {
                       <div className="flex gap-3">
                         <button
                           onClick={() => startEdit(story)}
-                          className="px-5 py-3 rounded-full bg-white text-black font-bold hover:scale-105 transition"
+                          className="px-5 py-3 rounded-full bg-white text-black font-bold"
                         >
                           Modifica
                         </button>
 
                         <button
                           onClick={() => deleteStory(story.id)}
-                          className="px-5 py-3 rounded-full border border-red-400/40 text-red-300 font-bold hover:bg-red-500/10 transition"
+                          className="px-5 py-3 rounded-full border border-red-400/40 text-red-300 font-bold"
                         >
                           Elimina
                         </button>
@@ -403,6 +547,13 @@ export default function App() {
           )}
         </div>
       </section>
+
+      <footer className="px-6 py-8 border-t border-white/10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-4 text-sm text-white/40">
+          <p>© 2026 Edoardo Massetti</p>
+          <p>Giornalismo moderno • Podcast • Editoriale</p>
+        </div>
+      </footer>
     </main>
   )
 }
