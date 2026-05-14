@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react"
-
 import {
   onAuthStateChanged,
   signOut,
@@ -8,7 +7,6 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from "firebase/auth"
-
 import {
   doc,
   getDoc,
@@ -16,21 +14,14 @@ import {
   deleteDoc,
   serverTimestamp,
 } from "firebase/firestore"
-
-import {
-  ref,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage"
-
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { Link, useNavigate } from "react-router-dom"
-
 import { auth, db, storage } from "../firebase"
-
 import Navbar from "../components/Navbar"
 
 export default function ProfilePage() {
   const navigate = useNavigate()
+  const ADMIN_EMAIL = "massetti.edoardo@libero.it"
 
   const [user, setUser] = useState(null)
   const [message, setMessage] = useState("")
@@ -49,6 +40,8 @@ export default function ProfilePage() {
     birthDate: "",
   })
 
+  const isAdmin = user?.email === ADMIN_EMAIL
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser)
@@ -59,8 +52,26 @@ export default function ProfilePage() {
 
         if (profileSnap.exists()) {
           setProfile({
-            ...profile,
-            ...profileSnap.data(),
+            displayName:
+              currentUser.email === ADMIN_EMAIL
+                ? "Edoardo Massetti"
+                : profileSnap.data().displayName || "",
+            username: profileSnap.data().username || "",
+            bio: profileSnap.data().bio || "",
+            city: profileSnap.data().city || "",
+            interests: profileSnap.data().interests || "",
+            avatarUrl: profileSnap.data().avatarUrl || "",
+            birthDate: profileSnap.data().birthDate || "",
+          })
+        } else if (currentUser.email === ADMIN_EMAIL) {
+          setProfile({
+            displayName: "Edoardo Massetti",
+            username: "edoardo",
+            bio: "",
+            city: "",
+            interests: "",
+            avatarUrl: "",
+            birthDate: "",
           })
         }
       }
@@ -75,7 +86,6 @@ export default function ProfilePage() {
     setMessage("Caricamento immagine in corso...")
 
     const safeName = avatarFile.name.replaceAll(" ", "-")
-
     const avatarRef = ref(
       storage,
       `avatars/${user.uid}/${Date.now()}-${safeName}`
@@ -83,9 +93,7 @@ export default function ProfilePage() {
 
     await uploadBytes(avatarRef, avatarFile)
 
-    const downloadUrl = await getDownloadURL(avatarRef)
-
-    return downloadUrl
+    return await getDownloadURL(avatarRef)
   }
 
   async function saveProfile() {
@@ -96,10 +104,15 @@ export default function ProfilePage() {
         ? await uploadAvatar()
         : profile.avatarUrl
 
+      const finalDisplayName = isAdmin
+        ? "Edoardo Massetti"
+        : profile.displayName
+
       await setDoc(
         doc(db, "users", user.uid),
         {
           ...profile,
+          displayName: finalDisplayName,
           avatarUrl: finalAvatarUrl,
           email: user.email,
           profileCompleted: true,
@@ -110,6 +123,7 @@ export default function ProfilePage() {
 
       setProfile({
         ...profile,
+        displayName: finalDisplayName,
         avatarUrl: finalAvatarUrl,
       })
 
@@ -131,7 +145,6 @@ export default function ProfilePage() {
       if (!user) return
 
       await sendEmailVerification(user)
-
       setMessage("Email di verifica inviata di nuovo.")
     } catch {
       setMessage("Errore durante l'invio della verifica email.")
@@ -141,6 +154,11 @@ export default function ProfilePage() {
   async function deleteAccount() {
     try {
       if (!user) return
+
+      if (isAdmin) {
+        setMessage("L'account admin non può essere eliminato da qui.")
+        return
+      }
 
       const providerId = user.providerData[0]?.providerId
 
@@ -227,7 +245,9 @@ export default function ProfilePage() {
               </div>
 
               <h2 className="text-3xl font-black">
-                {profile.displayName || "Utente FattiDiretti"}
+                {isAdmin
+                  ? "Edoardo Massetti"
+                  : profile.displayName || "Utente FattiDiretti"}
               </h2>
 
               <p className="text-black/50 mt-2">
@@ -237,21 +257,15 @@ export default function ProfilePage() {
               <p className="text-black/50 mt-2">{user.email}</p>
 
               {profile.birthDate && (
-                <p className="mt-4 text-black/70">
-                  🎂 {profile.birthDate}
-                </p>
+                <p className="mt-4 text-black/70">🎂 {profile.birthDate}</p>
               )}
 
               {profile.city && (
-                <p className="mt-2 text-black/70">
-                  📍 {profile.city}
-                </p>
+                <p className="mt-2 text-black/70">📍 {profile.city}</p>
               )}
 
               {profile.interests && (
-                <p className="mt-2 text-black/70">
-                  🎯 {profile.interests}
-                </p>
+                <p className="mt-2 text-black/70">🎯 {profile.interests}</p>
               )}
 
               {profile.bio && (
@@ -261,27 +275,38 @@ export default function ProfilePage() {
               )}
 
               <div className="mt-8 space-y-5">
-                <div>
-                  <p className="text-black/40 font-bold uppercase text-sm">
-                    Verifica email
-                  </p>
+                {!isAdmin && (
+                  <div>
+                    <p className="text-black/40 font-bold uppercase text-sm">
+                      Verifica email
+                    </p>
 
-                  <p
-                    className={`text-2xl font-black mt-2 ${
-                      user.emailVerified ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {user.emailVerified ? "Verificata" : "Non verificata"}
-                  </p>
-                </div>
+                    <p
+                      className={`text-2xl font-black mt-2 ${
+                        user.emailVerified ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {user.emailVerified ? "Verificata" : "Non verificata"}
+                    </p>
+                  </div>
+                )}
 
-                {!user.emailVerified && (
+                {!isAdmin && !user.emailVerified && (
                   <button
                     onClick={resendVerificationEmail}
                     className="w-full px-6 py-4 rounded-full bg-black text-white font-black"
                   >
                     Reinvia verifica
                   </button>
+                )}
+
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    className="block w-full px-6 py-4 rounded-full bg-red-600 text-white font-black text-center"
+                  >
+                    Vai al pannello admin
+                  </Link>
                 )}
 
                 <button
@@ -298,14 +323,16 @@ export default function ProfilePage() {
                   Logout
                 </button>
 
-                <button
-                  onClick={() => setShowDeleteBox(!showDeleteBox)}
-                  className="w-full px-6 py-4 rounded-full border border-red-500 text-red-600 font-black"
-                >
-                  Elimina account
-                </button>
+                {!isAdmin && (
+                  <button
+                    onClick={() => setShowDeleteBox(!showDeleteBox)}
+                    className="w-full px-6 py-4 rounded-full border border-red-500 text-red-600 font-black"
+                  >
+                    Elimina account
+                  </button>
+                )}
 
-                {showDeleteBox && (
+                {!isAdmin && showDeleteBox && (
                   <div className="p-4 rounded-2xl bg-red-50 border border-red-200">
                     <p className="text-red-700 font-bold mb-4">
                       Questa azione è definitiva. Il profilo verrà eliminato.
@@ -342,7 +369,8 @@ export default function ProfilePage() {
                   <input
                     type="text"
                     placeholder="Nome visualizzato"
-                    value={profile.displayName}
+                    value={isAdmin ? "Edoardo Massetti" : profile.displayName}
+                    disabled={isAdmin}
                     onChange={(e) =>
                       setProfile({
                         ...profile,
