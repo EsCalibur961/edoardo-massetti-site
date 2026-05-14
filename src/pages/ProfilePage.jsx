@@ -4,22 +4,56 @@ import {
   signOut,
   sendEmailVerification,
 } from "firebase/auth"
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
 import { Link } from "react-router-dom"
 
-import { auth } from "../firebase"
+import { auth, db } from "../firebase"
 import Navbar from "../components/Navbar"
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null)
   const [message, setMessage] = useState("")
+  const [profile, setProfile] = useState({
+    displayName: "",
+    username: "",
+    bio: "",
+    city: "",
+    interests: "",
+    avatarUrl: "",
+  })
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser)
+
+      if (currentUser) {
+        const profileRef = doc(db, "users", currentUser.uid)
+        const profileSnap = await getDoc(profileRef)
+
+        if (profileSnap.exists()) {
+          setProfile(profileSnap.data())
+        }
+      }
     })
 
     return () => unsubscribe()
   }, [])
+
+  async function saveProfile() {
+    if (!user) return
+
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        ...profile,
+        email: user.email,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    )
+
+    setMessage("Profilo aggiornato correttamente.")
+  }
 
   async function logoutUser() {
     await signOut(auth)
@@ -29,9 +63,7 @@ export default function ProfilePage() {
   async function resendVerificationEmail() {
     try {
       if (!user) return
-
       await sendEmailVerification(user)
-
       setMessage("Email di verifica inviata di nuovo.")
     } catch {
       setMessage("Errore durante l'invio della verifica email.")
@@ -45,9 +77,7 @@ export default function ProfilePage() {
 
         <section className="pt-40 px-6">
           <div className="max-w-xl mx-auto p-8 rounded-[2rem] bg-white text-black">
-            <h1 className="text-4xl font-black mb-6">
-              Profilo utente
-            </h1>
+            <h1 className="text-4xl font-black mb-6">Profilo utente</h1>
 
             <p className="text-black/60 mb-6">
               Devi effettuare il login per vedere il tuo profilo.
@@ -70,7 +100,7 @@ export default function ProfilePage() {
       <Navbar />
 
       <section className="pt-40 px-6 pb-28">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
             Area personale
           </p>
@@ -79,67 +109,144 @@ export default function ProfilePage() {
             Profilo utente
           </h1>
 
-          {message && (
-            <p className="mb-8 text-white/70 font-bold">
-              {message}
-            </p>
-          )}
+          {message && <p className="mb-8 text-white/70 font-bold">{message}</p>}
 
-          <div className="p-8 rounded-[2rem] bg-white text-black">
-            <div className="space-y-6">
-              <div>
-                <p className="text-black/40 font-bold uppercase text-sm">
-                  Email
-                </p>
-
-                <p className="text-2xl font-black mt-2">
-                  {user.email}
-                </p>
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="p-8 rounded-[2rem] bg-white text-black">
+              <div className="w-32 h-32 rounded-full bg-black/10 overflow-hidden mb-6">
+                {profile.avatarUrl ? (
+                  <img
+                    src={profile.avatarUrl}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-4xl font-black">
+                    FD
+                  </div>
+                )}
               </div>
 
-              <div>
-                <p className="text-black/40 font-bold uppercase text-sm">
-                  Verifica email
-                </p>
+              <h2 className="text-3xl font-black">
+                {profile.displayName || "Utente FattiDiretti"}
+              </h2>
 
-                <p
-                  className={`text-2xl font-black mt-2 ${
-                    user.emailVerified
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {user.emailVerified
-                    ? "Verificata"
-                    : "Non verificata"}
-                </p>
-              </div>
+              <p className="text-black/50 mt-2">{user.email}</p>
 
-              <div>
-                <p className="text-black/40 font-bold uppercase text-sm">
-                  ID utente
-                </p>
+              <div className="mt-8 space-y-5">
+                <div>
+                  <p className="text-black/40 font-bold uppercase text-sm">
+                    Verifica email
+                  </p>
 
-                <p className="text-sm text-black/50 break-all mt-2">
-                  {user.uid}
-                </p>
-              </div>
+                  <p
+                    className={`text-2xl font-black mt-2 ${
+                      user.emailVerified ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {user.emailVerified ? "Verificata" : "Non verificata"}
+                  </p>
+                </div>
 
-              {!user.emailVerified && (
+                <div>
+                  <p className="text-black/40 font-bold uppercase text-sm">
+                    ID utente
+                  </p>
+
+                  <p className="text-xs text-black/50 break-all mt-2">
+                    {user.uid}
+                  </p>
+                </div>
+
+                {!user.emailVerified && (
+                  <button
+                    onClick={resendVerificationEmail}
+                    className="w-full px-6 py-4 rounded-full bg-black text-white font-black"
+                  >
+                    Reinvia verifica
+                  </button>
+                )}
+
                 <button
-                  onClick={resendVerificationEmail}
+                  onClick={logoutUser}
+                  className="w-full px-6 py-4 rounded-full border border-black/20 text-black font-black"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+
+            <div className="lg:col-span-2 p-8 rounded-[2rem] bg-white text-black">
+              <h2 className="text-3xl font-black mb-6">Modifica profilo</h2>
+
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="Nome visualizzato"
+                  value={profile.displayName}
+                  onChange={(e) =>
+                    setProfile({ ...profile, displayName: e.target.value })
+                  }
+                  className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={profile.username}
+                  onChange={(e) =>
+                    setProfile({ ...profile, username: e.target.value })
+                  }
+                  className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Città"
+                  value={profile.city}
+                  onChange={(e) =>
+                    setProfile({ ...profile, city: e.target.value })
+                  }
+                  className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Interessi, es: politica, cronaca, podcast"
+                  value={profile.interests}
+                  onChange={(e) =>
+                    setProfile({ ...profile, interests: e.target.value })
+                  }
+                  className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                />
+
+                <input
+                  type="text"
+                  placeholder="URL immagine profilo"
+                  value={profile.avatarUrl}
+                  onChange={(e) =>
+                    setProfile({ ...profile, avatarUrl: e.target.value })
+                  }
+                  className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                />
+
+                <textarea
+                  rows="5"
+                  placeholder="Bio personale"
+                  value={profile.bio}
+                  onChange={(e) =>
+                    setProfile({ ...profile, bio: e.target.value })
+                  }
+                  className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none resize-none"
+                />
+
+                <button
+                  onClick={saveProfile}
                   className="w-full px-8 py-4 rounded-full bg-black text-white font-black"
                 >
-                  Reinvia email di verifica
+                  Salva profilo
                 </button>
-              )}
-
-              <button
-                onClick={logoutUser}
-                className="w-full px-8 py-4 rounded-full border border-black/20 text-black font-black"
-              >
-                Logout
-              </button>
+              </div>
             </div>
           </div>
         </div>
