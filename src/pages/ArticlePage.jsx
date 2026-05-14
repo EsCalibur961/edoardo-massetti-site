@@ -1,32 +1,35 @@
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
-import { doc, getDoc } from "firebase/firestore"
+import { collection, getDocs } from "firebase/firestore"
 import { Helmet } from "react-helmet-async"
 import { db } from "../firebase"
 
 import Navbar from "../components/Navbar"
 
 export default function ArticlePage() {
-  const { id } = useParams()
+  const { slug } = useParams()
   const [article, setArticle] = useState(null)
 
   useEffect(() => {
     async function loadArticle() {
-      const ref = doc(db, "articles", id)
-      const snap = await getDoc(ref)
+      const data = await getDocs(collection(db, "articles"))
 
-      if (snap.exists()) {
-        setArticle(snap.data())
+      const found = data.docs.find(
+        (item) => item.data().slug === slug
+      )
+
+      if (found) {
+        setArticle(found.data())
       }
     }
 
     loadArticle()
-  }, [id])
+  }, [slug])
 
   if (!article) {
     return (
       <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        Caricamento...
+        Articolo non trovato...
       </main>
     )
   }
@@ -35,20 +38,16 @@ export default function ArticlePage() {
     <>
       <Helmet>
         <title>{article.seoTitle || article.title}</title>
-
         <meta
           name="description"
-          content={
-            article.seoDescription ||
-            article.description
-          }
+          content={article.seoDescription || article.description}
         />
       </Helmet>
 
       <main className="min-h-screen bg-[#080808] text-white">
         <Navbar />
 
-        <section className="pt-36 px-6">
+        <section className="pt-36 px-6 pb-28">
           <div className="max-w-5xl mx-auto">
             {article.coverImage && (
               <img
@@ -66,15 +65,11 @@ export default function ArticlePage() {
               {article.title}
             </h1>
 
-            <p className="text-white/40 mb-10">
-              {article.publishDate}
-            </p>
+            <p className="text-white/40 mb-10">{article.publishDate}</p>
 
             <div
               className="text-xl leading-relaxed text-white/80"
-              dangerouslySetInnerHTML={{
-                __html: article.content,
-              }}
+              dangerouslySetInnerHTML={{ __html: article.content }}
             />
           </div>
         </section>

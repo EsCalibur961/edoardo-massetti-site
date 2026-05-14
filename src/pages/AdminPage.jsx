@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react"
-import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "firebase/firestore"
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth"
+import {
+  collection,
+  addDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  doc,
+} from "firebase/firestore"
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+} from "firebase/auth"
 import ReactQuill from "react-quill-new"
 import "react-quill-new/dist/quill.snow.css"
 
@@ -33,6 +44,14 @@ export default function AdminPage() {
 
   const isAdmin = user?.email === ADMIN_EMAIL
   const articlesCollection = collection(db, "articles")
+
+  function createSlug(text) {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+  }
 
   async function loadArticles() {
     const data = await getDocs(articlesCollection)
@@ -93,6 +112,7 @@ export default function AdminPage() {
     }
 
     const articleData = {
+      slug: createSlug(form.title),
       ...form,
       publishDate:
         form.publishDate || new Date().toLocaleDateString("it-IT"),
@@ -364,9 +384,15 @@ export default function AdminPage() {
                         {article.title}
                       </h3>
 
-                      <p className="text-white/50 mb-6">
+                      <p className="text-white/50 mb-3">
                         {article.description}
                       </p>
+
+                      {article.slug && (
+                        <p className="text-white/30 text-sm mb-6">
+                          URL: /article/{article.slug}
+                        </p>
+                      )}
 
                       <div className="flex gap-3">
                         <button
