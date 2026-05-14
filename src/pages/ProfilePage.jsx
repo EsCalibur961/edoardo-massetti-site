@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom"
 import { useEffect, useState } from "react"
 import {
   onAuthStateChanged,
@@ -51,12 +52,12 @@ export default function ProfilePage() {
               Devi effettuare il login per vedere il tuo profilo.
             </p>
 
-            <a
+            <Link
               href="/login"
               className="inline-block px-8 py-4 rounded-full bg-black text-white font-black"
             >
               Vai al login
-            </a>
+            </Link>
           </div>
         </section>
       </main>
