@@ -12,6 +12,9 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
 } from "firebase/auth"
 import ReactQuill from "react-quill-new"
 import "react-quill-new/dist/quill.snow.css"
@@ -30,6 +33,13 @@ export default function AdminPage() {
   const [editingArticleId, setEditingArticleId] = useState(null)
   const [editingPodcastId, setEditingPodcastId] = useState(null)
   const [message, setMessage] = useState("")
+  const [showLoginPassword, setShowLoginPassword] = useState(false)
+  const [showAdminPasswords, setShowAdminPasswords] = useState(false)
+
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+  })
 
   const [loginForm, setLoginForm] = useState({
     email: "",
@@ -135,6 +145,44 @@ export default function AdminPage() {
   async function logoutAdmin() {
     await signOut(auth)
     setMessage("Logout effettuato.")
+  }
+
+  async function changeAdminPassword() {
+    try {
+      setMessage("")
+
+      if (!user) {
+        setMessage("Devi essere loggato come admin.")
+        return
+      }
+
+      if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+        setMessage("Inserisci password attuale e nuova password.")
+        return
+      }
+
+      if (passwordForm.newPassword.length < 6) {
+        setMessage("La nuova password deve avere almeno 6 caratteri.")
+        return
+      }
+
+      const credential = EmailAuthProvider.credential(
+        user.email,
+        passwordForm.currentPassword
+      )
+
+      await reauthenticateWithCredential(user, credential)
+      await updatePassword(user, passwordForm.newPassword)
+
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+      })
+
+      setMessage("Password admin aggiornata correttamente.")
+    } catch {
+      setMessage("Errore: password attuale non corretta o sessione scaduta.")
+    }
   }
 
   async function saveArticle() {
@@ -303,7 +351,7 @@ export default function AdminPage() {
                 />
 
                 <input
-                  type="password"
+                  type={showLoginPassword ? "text" : "password"}
                   placeholder="Password admin"
                   value={loginForm.password}
                   onChange={(e) =>
@@ -314,6 +362,15 @@ export default function AdminPage() {
                   }
                   className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                 />
+
+                <label className="flex items-center gap-2 text-black/60 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={showLoginPassword}
+                    onChange={() => setShowLoginPassword(!showLoginPassword)}
+                  />
+                  Mostra password
+                </label>
 
                 <button
                   onClick={loginAdmin}
@@ -361,6 +418,58 @@ export default function AdminPage() {
               >
                 Logout
               </button>
+
+              <div className="mb-12 p-8 rounded-[2rem] bg-white text-black">
+                <h2 className="text-3xl font-black mb-6">
+                  Cambia password admin
+                </h2>
+
+                <div className="space-y-4">
+                  <input
+                    type={showAdminPasswords ? "text" : "password"}
+                    placeholder="Password attuale"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) =>
+                      setPasswordForm({
+                        ...passwordForm,
+                        currentPassword: e.target.value,
+                      })
+                    }
+                    className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                  />
+
+                  <input
+                    type={showAdminPasswords ? "text" : "password"}
+                    placeholder="Nuova password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) =>
+                      setPasswordForm({
+                        ...passwordForm,
+                        newPassword: e.target.value,
+                      })
+                    }
+                    className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                  />
+
+                  <label className="flex items-center gap-2 text-black/60 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={showAdminPasswords}
+                      onChange={() =>
+                        setShowAdminPasswords(!showAdminPasswords)
+                      }
+                    />
+                    Mostra password
+                  </label>
+
+                  <button
+                    onClick={changeAdminPassword}
+                    className="w-full px-8 py-4 rounded-full bg-black text-white font-black"
+                  >
+                    Aggiorna password
+                  </button>
+                </div>
+              </div>
 
               <div className="grid lg:grid-cols-2 gap-8 mb-20">
                 <div className="p-8 rounded-[2rem] bg-white text-black">

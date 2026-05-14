@@ -8,7 +8,11 @@ import {
   serverTimestamp,
   addDoc,
 } from "firebase/firestore"
-import { createUserWithEmailAndPassword, signOut } from "firebase/auth"
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  signOut,
+} from "firebase/auth"
 import { Helmet } from "react-helmet-async"
 import { Link } from "react-router-dom"
 import { db, auth } from "../firebase"
@@ -20,11 +24,13 @@ import ArticleCard from "../components/ArticleCard"
 export default function Home() {
   const [articles, setArticles] = useState([])
   const [podcasts, setPodcasts] = useState([])
+  const [registerMessage, setRegisterMessage] = useState("")
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false)
+
   const [registerForm, setRegisterForm] = useState({
     email: "",
     password: "",
   })
-  const [registerMessage, setRegisterMessage] = useState("")
 
   useEffect(() => {
     async function loadData() {
@@ -79,21 +85,26 @@ export default function Home() {
         return
       }
 
-      await createUserWithEmailAndPassword(
+      const userCredential = await createUserWithEmailAndPassword(
         auth,
         registerForm.email,
         registerForm.password
       )
 
+      await sendEmailVerification(userCredential.user)
+
       await addDoc(collection(db, "registrations"), {
         email: registerForm.email,
+        verified: false,
         createdAt: serverTimestamp(),
       })
 
       await signOut(auth)
 
       setRegisterForm({ email: "", password: "" })
-      setRegisterMessage("Registrazione completata.")
+      setRegisterMessage(
+        "Registrazione completata. Controlla la tua email per verificare l'account."
+      )
     } catch (error) {
       if (error.code === "auth/email-already-in-use") {
         setRegisterMessage("Questa email è già registrata.")
@@ -331,7 +342,7 @@ export default function Home() {
                 />
 
                 <input
-                  type="password"
+                  type={showRegisterPassword ? "text" : "password"}
                   placeholder="Password almeno 6 caratteri"
                   value={registerForm.password}
                   onChange={(e) =>
@@ -342,6 +353,17 @@ export default function Home() {
                   }
                   className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/10 outline-none"
                 />
+
+                <label className="flex items-center gap-2 text-white/60 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={showRegisterPassword}
+                    onChange={() =>
+                      setShowRegisterPassword(!showRegisterPassword)
+                    }
+                  />
+                  Mostra password
+                </label>
 
                 <button
                   onClick={registerUser}
