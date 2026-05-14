@@ -1,12 +1,12 @@
-import { Link } from "react-router-dom"
 import { useEffect, useState } from "react"
 import {
   onAuthStateChanged,
   signOut,
   sendEmailVerification,
 } from "firebase/auth"
-import { auth } from "../firebase"
+import { Link } from "react-router-dom"
 
+import { auth } from "../firebase"
 import Navbar from "../components/Navbar"
 
 export default function ProfilePage() {
@@ -31,6 +31,7 @@ export default function ProfilePage() {
       if (!user) return
 
       await sendEmailVerification(user)
+
       setMessage("Email di verifica inviata di nuovo.")
     } catch {
       setMessage("Errore durante l'invio della verifica email.")
@@ -53,7 +54,7 @@ export default function ProfilePage() {
             </p>
 
             <Link
-              href="/login"
+              to="/login"
               className="inline-block px-8 py-4 rounded-full bg-black text-white font-black"
             >
               Vai al login
@@ -103,10 +104,14 @@ export default function ProfilePage() {
 
                 <p
                   className={`text-2xl font-black mt-2 ${
-                    user.emailVerified ? "text-green-600" : "text-red-600"
+                    user.emailVerified
+                      ? "text-green-600"
+                      : "text-red-600"
                   }`}
                 >
-                  {user.emailVerified ? "Verificata" : "Non verificata"}
+                  {user.emailVerified
+                    ? "Verificata"
+                    : "Non verificata"}
                 </p>
               </div>
 
