@@ -7,28 +7,25 @@ import {
   GoogleAuthProvider,
 } from "firebase/auth"
 
-import {
-  useNavigate,
-} from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 
 import { auth } from "../firebase"
 
 import Navbar from "../components/Navbar"
 
 export default function LoginPage() {
-  const navigate =
-    useNavigate()
+  const navigate = useNavigate()
 
-  const [showPassword, setShowPassword] =
-    useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
-  const [message, setMessage] =
-    useState("")
+  const [message, setMessage] = useState("")
 
   const [form, setForm] = useState({
     email: "",
     password: "",
   })
+
+  const ADMIN_EMAIL = "massetti.edoardo@libero.it"
 
   async function loginUser() {
     try {
@@ -39,9 +36,16 @@ export default function LoginPage() {
           form.password
         )
 
+      const currentUser =
+        userCredential.user
+
+      const isAdmin =
+        currentUser.email ===
+        ADMIN_EMAIL
+
       if (
-        !userCredential.user
-          .emailVerified
+        !currentUser.emailVerified &&
+        !isAdmin
       ) {
         await signOut(auth)
 
