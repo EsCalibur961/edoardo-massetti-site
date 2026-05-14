@@ -5,15 +5,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.3.0",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest",
     "firebase": "latest",
     "framer-motion": "latest",
-    "react-router-dom": "latest",
+    "react": "latest",
+    "react-dom": "latest",
     "react-helmet-async": "latest",
-    "react-quill-new": "latest"
-  },
-  "devDependencies": {}
+    "react-quill-new": "latest",
+    "react-router-dom": "latest",
+    "vite": "latest"
+  }
 }
