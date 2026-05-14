@@ -14,7 +14,8 @@ import {
   signOut,
   onAuthStateChanged,
 } from "firebase/auth"
-import { db, auth } from "./firebase"
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
+import { db, auth, storage } from "./firebase"
 
 export default function App() {
   const ADMIN_EMAIL = "massetti.edoardo@libero.it"
@@ -27,6 +28,7 @@ export default function App() {
   const [editingPodcastId, setEditingPodcastId] = useState(null)
   const [user, setUser] = useState(null)
   const [message, setMessage] = useState("")
+  const [videoFile, setVideoFile] = useState(null)
 
   const [loginForm, setLoginForm] = useState({ email: "", password: "" })
   const [registerForm, setRegisterForm] = useState({ email: "", password: "" })
@@ -48,7 +50,6 @@ export default function App() {
   })
 
   const isAdmin = user?.email === ADMIN_EMAIL
-
   const articlesCollection = collection(db, "articles")
   const podcastsCollection = collection(db, "podcasts")
 
@@ -76,13 +77,7 @@ export default function App() {
   async function loginAdmin() {
     try {
       setMessage("")
-
-      await signInWithEmailAndPassword(
-        auth,
-        loginForm.email,
-        loginForm.password
-      )
-
+      await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password)
       setLoginForm({ email: "", password: "" })
       setMessage("Accesso effettuato.")
     } catch {
@@ -113,7 +108,7 @@ export default function App() {
       await signOut(auth)
 
       setRegisterForm({ email: "", password: "" })
-      setMessage("Registrazione completata. Ora puoi seguire FattiDiretti.")
+      setMessage("Registrazione completata.")
     } catch (error) {
       if (error.code === "auth/email-already-in-use") {
         setMessage("Questa email è già registrata.")
@@ -165,10 +160,7 @@ export default function App() {
   }
 
   async function deleteStory(id) {
-    if (!isAdmin) {
-      setMessage("Solo l'admin può eliminare articoli.")
-      return
-    }
+    if (!isAdmin) return
 
     await deleteDoc(doc(db, "articles", id))
     setMessage("Articolo eliminato.")
@@ -186,12 +178,27 @@ export default function App() {
       return
     }
 
+    let finalVideoUrl = podcastForm.videoUrl
+
+    if (videoFile) {
+      setMessage("Caricamento video in corso...")
+
+      const videoRef = ref(storage, `podcasts/${Date.now()}-${videoFile.name}`)
+      await uploadBytes(videoRef, videoFile)
+      finalVideoUrl = await getDownloadURL(videoRef)
+    }
+
+    const podcastData = {
+      ...podcastForm,
+      videoUrl: finalVideoUrl,
+    }
+
     if (editingPodcastId) {
-      await updateDoc(doc(db, "podcasts", editingPodcastId), podcastForm)
+      await updateDoc(doc(db, "podcasts", editingPodcastId), podcastData)
       setEditingPodcastId(null)
       setMessage("Podcast modificato.")
     } else {
-      await addDoc(podcastsCollection, podcastForm)
+      await addDoc(podcastsCollection, podcastData)
       setMessage("Podcast pubblicato.")
     }
 
@@ -204,6 +211,7 @@ export default function App() {
       videoUrl: "",
     })
 
+    setVideoFile(null)
     loadPodcasts()
   }
 
@@ -222,10 +230,7 @@ export default function App() {
   }
 
   async function deletePodcast(id) {
-    if (!isAdmin) {
-      setMessage("Solo l'admin può eliminare podcast.")
-      return
-    }
+    if (!isAdmin) return
 
     await deleteDoc(doc(db, "podcasts", id))
     setMessage("Podcast eliminato.")
@@ -265,6 +270,8 @@ export default function App() {
   }
 
   if (selectedPodcast) {
+    const isUploadedVideo = selectedPodcast.videoUrl?.includes("firebasestorage")
+
     return (
       <main className="min-h-screen bg-[#080808] text-white px-6 py-20">
         <div className="max-w-5xl mx-auto">
@@ -285,12 +292,20 @@ export default function App() {
 
           {selectedPodcast.videoUrl ? (
             <div className="aspect-video rounded-[2rem] overflow-hidden mb-10 bg-black">
-              <iframe
-                src={selectedPodcast.videoUrl}
-                title={selectedPodcast.title}
-                className="w-full h-full"
-                allowFullScreen
-              />
+              {isUploadedVideo ? (
+                <video
+                  src={selectedPodcast.videoUrl}
+                  controls
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <iframe
+                  src={selectedPodcast.videoUrl}
+                  title={selectedPodcast.title}
+                  className="w-full h-full"
+                  allowFullScreen
+                />
+              )}
             </div>
           ) : selectedPodcast.image ? (
             <img
@@ -320,21 +335,11 @@ export default function App() {
           <h1 className="text-lg md:text-2xl font-black">FattiDiretti</h1>
 
           <div className="hidden md:flex gap-8 text-sm text-white/60">
-            <a href="#" className="hover:text-white transition">
-              Home
-            </a>
-            <a href="#stories" className="hover:text-white transition">
-              Articoli
-            </a>
-            <a href="#podcast" className="hover:text-white transition">
-              Podcast
-            </a>
-            <a href="#register" className="hover:text-white transition">
-              Registrati
-            </a>
-            <a href="#admin" className="hover:text-white transition">
-              Admin
-            </a>
+            <a href="#" className="hover:text-white transition">Home</a>
+            <a href="#stories" className="hover:text-white transition">Articoli</a>
+            <a href="#podcast" className="hover:text-white transition">Podcast</a>
+            <a href="#register" className="hover:text-white transition">Registrati</a>
+            <a href="#admin" className="hover:text-white transition">Admin</a>
           </div>
         </div>
       </nav>
@@ -487,10 +492,7 @@ export default function App() {
                 placeholder="Password almeno 6 caratteri"
                 value={registerForm.password}
                 onChange={(e) =>
-                  setRegisterForm({
-                    ...registerForm,
-                    password: e.target.value,
-                  })
+                  setRegisterForm({ ...registerForm, password: e.target.value })
                 }
                 className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/10 outline-none"
               />
@@ -506,10 +508,7 @@ export default function App() {
         </div>
       </section>
 
-      <section
-        id="admin"
-        className="px-6 py-28 bg-black border-t border-white/10"
-      >
+      <section id="admin" className="px-6 py-28 bg-black border-t border-white/10">
         <div className="max-w-7xl mx-auto">
           <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
             Area riservata
@@ -524,13 +523,6 @@ export default function App() {
           {!isAdmin ? (
             <div className="max-w-xl p-8 rounded-[2rem] bg-white text-black">
               <h3 className="text-3xl font-black mb-6">Login admin</h3>
-
-              {user && user.email !== ADMIN_EMAIL && (
-                <p className="mb-6 text-red-600 font-bold">
-                  Sei registrato come utente normale. Solo l'email admin può
-                  gestire il sito.
-                </p>
-              )}
 
               <div className="space-y-4">
                 <input
@@ -597,9 +589,7 @@ export default function App() {
                       type="text"
                       placeholder="Categoria"
                       value={form.tag}
-                      onChange={(e) =>
-                        setForm({ ...form, tag: e.target.value })
-                      }
+                      onChange={(e) => setForm({ ...form, tag: e.target.value })}
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                     />
 
@@ -617,9 +607,7 @@ export default function App() {
                       rows="4"
                       placeholder="Descrizione breve"
                       value={form.desc}
-                      onChange={(e) =>
-                        setForm({ ...form, desc: e.target.value })
-                      }
+                      onChange={(e) => setForm({ ...form, desc: e.target.value })}
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none resize-none"
                     />
 
@@ -652,9 +640,7 @@ export default function App() {
                         {story.tag}
                       </p>
 
-                      <h3 className="text-2xl font-black mb-3">
-                        {story.title}
-                      </h3>
+                      <h3 className="text-2xl font-black mb-3">{story.title}</h3>
 
                       <p className="text-white/50 mb-6">{story.desc}</p>
 
@@ -757,7 +743,7 @@ export default function App() {
 
                       <input
                         type="text"
-                        placeholder="URL video YouTube embed"
+                        placeholder="URL video YouTube embed oppure link video"
                         value={podcastForm.videoUrl}
                         onChange={(e) =>
                           setPodcastForm({
@@ -768,13 +754,24 @@ export default function App() {
                         className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                       />
 
+                      <div>
+                        <p className="text-sm font-bold mb-2">
+                          Oppure carica video dal dispositivo
+                        </p>
+
+                        <input
+                          type="file"
+                          accept="video/*"
+                          onChange={(e) => setVideoFile(e.target.files[0])}
+                          className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                        />
+                      </div>
+
                       <button
                         onClick={savePodcast}
                         className="w-full px-8 py-4 rounded-full bg-black text-white font-black hover:scale-[1.02] transition"
                       >
-                        {editingPodcastId
-                          ? "Salva podcast"
-                          : "Pubblica podcast"}
+                        {editingPodcastId ? "Salva podcast" : "Pubblica podcast"}
                       </button>
                     </div>
                   </div>
