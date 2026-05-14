@@ -6,16 +6,10 @@ import {
   setDoc,
   increment,
   serverTimestamp,
-  addDoc,
 } from "firebase/firestore"
-import {
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  signOut,
-} from "firebase/auth"
 import { Helmet } from "react-helmet-async"
 import { Link } from "react-router-dom"
-import { db, auth } from "../firebase"
+import { db } from "../firebase"
 
 import Navbar from "../components/Navbar"
 import Footer from "../components/Footer"
@@ -24,13 +18,6 @@ import ArticleCard from "../components/ArticleCard"
 export default function Home() {
   const [articles, setArticles] = useState([])
   const [podcasts, setPodcasts] = useState([])
-  const [registerMessage, setRegisterMessage] = useState("")
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false)
-
-  const [registerForm, setRegisterForm] = useState({
-    email: "",
-    password: "",
-  })
 
   useEffect(() => {
     async function loadData() {
@@ -70,49 +57,6 @@ export default function Home() {
     loadData()
     trackView()
   }, [])
-
-  async function registerUser() {
-    try {
-      setRegisterMessage("")
-
-      if (!registerForm.email || !registerForm.password) {
-        setRegisterMessage("Inserisci email e password.")
-        return
-      }
-
-      if (registerForm.password.length < 6) {
-        setRegisterMessage("La password deve avere almeno 6 caratteri.")
-        return
-      }
-
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        registerForm.email,
-        registerForm.password
-      )
-
-      await sendEmailVerification(userCredential.user)
-
-      await addDoc(collection(db, "registrations"), {
-        email: registerForm.email,
-        verified: false,
-        createdAt: serverTimestamp(),
-      })
-
-      await signOut(auth)
-
-      setRegisterForm({ email: "", password: "" })
-      setRegisterMessage(
-        "Registrazione completata. Controlla la tua email per verificare l'account."
-      )
-    } catch (error) {
-      if (error.code === "auth/email-already-in-use") {
-        setRegisterMessage("Questa email è già registrata.")
-      } else {
-        setRegisterMessage("Errore durante la registrazione.")
-      }
-    }
-  }
 
   const featuredArticle = articles[0]
   const secondaryArticles = articles.slice(1, 4)
@@ -196,7 +140,9 @@ export default function Home() {
                 </div>
               </Link>
             ) : (
-              <p className="text-white/50 text-xl">Nessun articolo pubblicato.</p>
+              <p className="text-white/50 text-xl">
+                Nessun articolo pubblicato.
+              </p>
             )}
           </div>
         </section>
@@ -227,7 +173,9 @@ export default function Home() {
                       {article.title}
                     </h3>
 
-                    <p className="text-white/50">{article.description}</p>
+                    <p className="text-white/50">
+                      {article.description}
+                    </p>
                   </Link>
                 ))}
               </div>
@@ -237,16 +185,27 @@ export default function Home() {
 
         <section className="px-6 py-24 bg-white text-black">
           <div className="max-w-7xl mx-auto">
-            <p className="uppercase tracking-[0.35em] text-black/40 text-sm">
-              Tutti gli articoli
-            </p>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-14">
+              <div>
+                <p className="uppercase tracking-[0.35em] text-black/40 text-sm">
+                  Tutti gli articoli
+                </p>
 
-            <h2 className="text-5xl md:text-7xl font-black mt-4 mb-14">
-              Ultime pubblicazioni
-            </h2>
+                <h2 className="text-5xl md:text-7xl font-black mt-4">
+                  Ultime pubblicazioni
+                </h2>
+              </div>
+
+              <Link
+                to="/articles"
+                className="px-7 py-4 rounded-full bg-black text-white font-black text-center"
+              >
+                Vedi tutti
+              </Link>
+            </div>
 
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-              {articles.map((article) => (
+              {articles.slice(0, 6).map((article) => (
                 <ArticleCard key={article.id} article={article} />
               ))}
             </div>
@@ -255,13 +214,24 @@ export default function Home() {
 
         <section id="podcast" className="px-6 py-28 bg-[#080808] text-white">
           <div className="max-w-7xl mx-auto">
-            <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
-              Video Podcast
-            </p>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-14">
+              <div>
+                <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
+                  Video Podcast
+                </p>
 
-            <h2 className="text-5xl md:text-7xl font-black mt-4 mb-14">
-              Podcast FattiDiretti
-            </h2>
+                <h2 className="text-5xl md:text-7xl font-black mt-4">
+                  Podcast FattiDiretti
+                </h2>
+              </div>
+
+              <Link
+                to="/podcasts"
+                className="px-7 py-4 rounded-full bg-white text-black font-black text-center"
+              >
+                Vedi tutti
+              </Link>
+            </div>
 
             {podcasts.length === 0 ? (
               <p className="text-white/50 text-xl">
@@ -269,7 +239,7 @@ export default function Home() {
               </p>
             ) : (
               <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-                {podcasts.map((podcast) => (
+                {podcasts.slice(0, 6).map((podcast) => (
                   <Link
                     key={podcast.id}
                     to={`/podcast/${podcast.slug}`}
@@ -292,87 +262,14 @@ export default function Home() {
                         {podcast.title}
                       </h3>
 
-                      <p className="text-white/50">{podcast.description}</p>
+                      <p className="text-white/50">
+                        {podcast.description}
+                      </p>
                     </div>
                   </Link>
                 ))}
               </div>
             )}
-          </div>
-        </section>
-
-        <section id="register" className="px-6 py-28 bg-white text-black">
-          <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-10 items-center">
-            <div>
-              <p className="uppercase tracking-[0.35em] text-black/40 text-sm">
-                Community
-              </p>
-
-              <h2 className="text-5xl md:text-7xl font-black mt-4 mb-8">
-                Registrazione facoltativa.
-              </h2>
-
-              <p className="text-xl text-black/60 leading-relaxed">
-                I visitatori possono registrarsi per ricevere aggiornamenti,
-                podcast, contenuti extra e future aree premium.
-              </p>
-            </div>
-
-            <div className="p-8 rounded-[2rem] bg-black text-white">
-              <h3 className="text-3xl font-black mb-6">Crea account</h3>
-
-              {registerMessage && (
-                <p className="mb-5 text-white/70 font-bold">
-                  {registerMessage}
-                </p>
-              )}
-
-              <div className="space-y-4">
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={registerForm.email}
-                  onChange={(e) =>
-                    setRegisterForm({
-                      ...registerForm,
-                      email: e.target.value,
-                    })
-                  }
-                  className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/10 outline-none"
-                />
-
-                <input
-                  type={showRegisterPassword ? "text" : "password"}
-                  placeholder="Password almeno 6 caratteri"
-                  value={registerForm.password}
-                  onChange={(e) =>
-                    setRegisterForm({
-                      ...registerForm,
-                      password: e.target.value,
-                    })
-                  }
-                  className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/10 outline-none"
-                />
-
-                <label className="flex items-center gap-2 text-white/60 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={showRegisterPassword}
-                    onChange={() =>
-                      setShowRegisterPassword(!showRegisterPassword)
-                    }
-                  />
-                  Mostra password
-                </label>
-
-                <button
-                  onClick={registerUser}
-                  className="w-full px-8 py-4 rounded-full bg-white text-black font-black"
-                >
-                  Registrati
-                </button>
-              </div>
-            </div>
           </div>
         </section>
 
