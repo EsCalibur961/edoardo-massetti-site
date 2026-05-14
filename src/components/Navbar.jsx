@@ -8,12 +8,13 @@ export default function Navbar() {
           FattiDiretti
         </Link>
 
-        <div className="flex gap-6 text-sm text-white/60">
-          <Link to="/" className="hover:text-white transition">Home</Link>
-          <Link to="/articles" className="hover:text-white transition">Articoli</Link>
-          <Link to="/podcasts" className="hover:text-white transition">Podcast</Link>
-          <Link to="/admin" className="hover:text-white transition">Admin</Link>
-        </div>
+       <div className="flex gap-6 text-sm text-white/60">
+  <Link to="/" className="hover:text-white transition">Home</Link>
+  <Link to="/articles" className="hover:text-white transition">Articoli</Link>
+  <Link to="/podcasts" className="hover:text-white transition">Podcast</Link>
+  <Link to="/register" className="hover:text-white transition">Registrati</Link>
+  <Link to="/login" className="hover:text-white transition">Login</Link>
+</div>
       </div>
     </nav>
   )
