@@ -8,6 +8,7 @@ import CategoryPage from "./pages/CategoryPage"
 import AdminPage from "./pages/AdminPage"
 import RegisterPage from "./pages/RegisterPage"
 import LoginPage from "./pages/LoginPage"
+import SearchPage from "./pages/SearchPage"
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/podcast/:slug" element={<PodcastPage />} />
         <Route path="/category/:category" element={<CategoryPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/search" element={<SearchPage />} />
       </Routes>
     </BrowserRouter>
   )

@@ -12,6 +12,7 @@ export default function Navbar() {
   <Link to="/" className="hover:text-white transition">Home</Link>
   <Link to="/articles" className="hover:text-white transition">Articoli</Link>
   <Link to="/podcasts" className="hover:text-white transition">Podcast</Link>
+  <Link to="/search" className="hover:text-white transition">Cerca</Link>
   <Link to="/register" className="hover:text-white transition">Registrati</Link>
   <Link to="/login" className="hover:text-white transition">Login</Link>
 </div>
