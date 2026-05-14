@@ -1,5 +1,12 @@
 import { useState } from "react"
-import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from "firebase/auth"
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  signOut,
+  signInWithPopup,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+} from "firebase/auth"
 import { addDoc, collection, serverTimestamp } from "firebase/firestore"
 import { auth, db } from "../firebase"
 import Navbar from "../components/Navbar"
@@ -9,25 +16,64 @@ export default function RegisterPage() {
   const [message, setMessage] = useState("")
   const [form, setForm] = useState({ email: "", password: "" })
 
+  async function saveRegistration(email, provider) {
+    await addDoc(collection(db, "registrations"), {
+      email,
+      provider,
+      createdAt: serverTimestamp(),
+    })
+  }
+
   async function registerUser() {
     try {
-      if (!form.email || !form.password) return setMessage("Inserisci email e password.")
-      if (form.password.length < 6) return setMessage("La password deve avere almeno 6 caratteri.")
+      setMessage("")
 
-      const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password)
+      if (!form.email || !form.password) {
+        setMessage("Inserisci email e password.")
+        return
+      }
+
+      if (form.password.length < 6) {
+        setMessage("La password deve avere almeno 6 caratteri.")
+        return
+      }
+
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        form.email,
+        form.password
+      )
+
       await sendEmailVerification(userCredential.user)
-
-      await addDoc(collection(db, "registrations"), {
-        email: form.email,
-        verified: false,
-        createdAt: serverTimestamp(),
-      })
-
+      await saveRegistration(form.email, "email")
       await signOut(auth)
+
       setForm({ email: "", password: "" })
-      setMessage("Registrazione completata. Controlla la tua email per verificare l'account.")
+      setMessage("Registrazione completata. Controlla la tua email.")
     } catch {
       setMessage("Errore durante la registrazione.")
+    }
+  }
+
+  async function registerWithGoogle() {
+    try {
+      const provider = new GoogleAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      await saveRegistration(result.user.email, "google")
+      setMessage("Registrazione Google completata.")
+    } catch {
+      setMessage("Errore registrazione Google.")
+    }
+  }
+
+  async function registerWithFacebook() {
+    try {
+      const provider = new FacebookAuthProvider()
+      const result = await signInWithPopup(auth, provider)
+      await saveRegistration(result.user.email, "facebook")
+      setMessage("Registrazione Facebook completata.")
+    } catch {
+      setMessage("Errore registrazione Facebook.")
     }
   }
 
@@ -42,6 +88,22 @@ export default function RegisterPage() {
           {message && <p className="mb-5 font-bold">{message}</p>}
 
           <div className="space-y-4">
+            <button
+              onClick={registerWithGoogle}
+              className="w-full px-8 py-4 rounded-full bg-black text-white font-black"
+            >
+              Continua con Google
+            </button>
+
+            <button
+              onClick={registerWithFacebook}
+              className="w-full px-8 py-4 rounded-full bg-blue-700 text-white font-black"
+            >
+              Continua con Facebook
+            </button>
+
+            <div className="text-center text-black/40 font-bold">oppure</div>
+
             <input
               type="email"
               placeholder="Email"
