@@ -5,14 +5,17 @@ import {
   sendEmailVerification,
 } from "firebase/auth"
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { Link } from "react-router-dom"
 
-import { auth, db } from "../firebase"
+import { auth, db, storage } from "../firebase"
 import Navbar from "../components/Navbar"
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null)
   const [message, setMessage] = useState("")
+  const [avatarFile, setAvatarFile] = useState(null)
+
   const [profile, setProfile] = useState({
     displayName: "",
     username: "",
@@ -39,20 +42,52 @@ export default function ProfilePage() {
     return () => unsubscribe()
   }, [])
 
+  async function uploadAvatar() {
+    if (!user || !avatarFile) return profile.avatarUrl
+
+    setMessage("Caricamento immagine in corso...")
+
+    const safeName = avatarFile.name.replaceAll(" ", "-")
+    const avatarRef = ref(
+      storage,
+      `avatars/${user.uid}/${Date.now()}-${safeName}`
+    )
+
+    await uploadBytes(avatarRef, avatarFile)
+    const downloadUrl = await getDownloadURL(avatarRef)
+
+    return downloadUrl
+  }
+
   async function saveProfile() {
     if (!user) return
 
-    await setDoc(
-      doc(db, "users", user.uid),
-      {
-        ...profile,
-        email: user.email,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    )
+    try {
+      const finalAvatarUrl = avatarFile
+        ? await uploadAvatar()
+        : profile.avatarUrl
 
-    setMessage("Profilo aggiornato correttamente.")
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          ...profile,
+          avatarUrl: finalAvatarUrl,
+          email: user.email,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+
+      setProfile({
+        ...profile,
+        avatarUrl: finalAvatarUrl,
+      })
+
+      setAvatarFile(null)
+      setMessage("Profilo aggiornato correttamente.")
+    } catch (error) {
+      setMessage("Errore caricamento immagine: " + error.message)
+    }
   }
 
   async function logoutUser() {
@@ -148,16 +183,6 @@ export default function ProfilePage() {
                   </p>
                 </div>
 
-                <div>
-                  <p className="text-black/40 font-bold uppercase text-sm">
-                    ID utente
-                  </p>
-
-                  <p className="text-xs text-black/50 break-all mt-2">
-                    {user.uid}
-                  </p>
-                </div>
-
                 {!user.emailVerified && (
                   <button
                     onClick={resendVerificationEmail}
@@ -212,7 +237,7 @@ export default function ProfilePage() {
 
                 <input
                   type="text"
-                  placeholder="Interessi, es: politica, cronaca, podcast"
+                  placeholder="Interessi"
                   value={profile.interests}
                   onChange={(e) =>
                     setProfile({ ...profile, interests: e.target.value })
@@ -220,15 +245,18 @@ export default function ProfilePage() {
                   className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                 />
 
-                <input
-                  type="text"
-                  placeholder="URL immagine profilo"
-                  value={profile.avatarUrl}
-                  onChange={(e) =>
-                    setProfile({ ...profile, avatarUrl: e.target.value })
-                  }
-                  className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                />
+                <div>
+                  <p className="font-bold mb-2">
+                    Carica foto profilo dal dispositivo
+                  </p>
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setAvatarFile(e.target.files[0])}
+                    className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                  />
+                </div>
 
                 <textarea
                   rows="5"
