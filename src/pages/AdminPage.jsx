@@ -6,6 +6,7 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  getDoc,
 } from "firebase/firestore"
 import {
   signInWithEmailAndPassword,
@@ -24,7 +25,9 @@ export default function AdminPage() {
   const [user, setUser] = useState(null)
   const [articles, setArticles] = useState([])
   const [podcasts, setPodcasts] = useState([])
-  const [editingId, setEditingId] = useState(null)
+  const [registrations, setRegistrations] = useState([])
+  const [stats, setStats] = useState({ views: 0 })
+  const [editingArticleId, setEditingArticleId] = useState(null)
   const [editingPodcastId, setEditingPodcastId] = useState(null)
   const [message, setMessage] = useState("")
 
@@ -33,7 +36,7 @@ export default function AdminPage() {
     password: "",
   })
 
-  const [form, setForm] = useState({
+  const [articleForm, setArticleForm] = useState({
     title: "",
     category: "",
     description: "",
@@ -48,50 +51,58 @@ export default function AdminPage() {
     title: "",
     category: "",
     description: "",
-    image: "",
+    content: "",
+    coverImage: "",
     videoUrl: "",
+    publishDate: "",
+    seoTitle: "",
+    seoDescription: "",
   })
 
   const isAdmin = user?.email === ADMIN_EMAIL
-  const articlesCollection = collection(db, "articles")
-  const podcastsCollection = collection(db, "podcasts")
 
   function createSlug(text) {
     return text
       .toLowerCase()
       .trim()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9\s-]/g, "")
       .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
   }
 
-  async function loadArticles() {
-    const data = await getDocs(articlesCollection)
+  async function loadDashboard() {
+    const articlesData = await getDocs(collection(db, "articles"))
+    const podcastsData = await getDocs(collection(db, "podcasts"))
+    const registrationsData = await getDocs(collection(db, "registrations"))
+    const statsSnap = await getDoc(doc(db, "stats", "main"))
 
     setArticles(
-      data.docs.map((item) => ({
+      articlesData.docs.map((item) => ({
         id: item.id,
         ...item.data(),
       }))
     )
-  }
-
-  async function loadPodcasts() {
-    const data = await getDocs(podcastsCollection)
 
     setPodcasts(
-      data.docs.map((item) => ({
+      podcastsData.docs.map((item) => ({
         id: item.id,
         ...item.data(),
       }))
     )
+
+    setRegistrations(
+      registrationsData.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }))
+    )
+
+    if (statsSnap.exists()) {
+      setStats(statsSnap.data())
+    }
   }
 
   useEffect(() => {
-    loadArticles()
-    loadPodcasts()
+    loadDashboard()
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser)
@@ -127,35 +138,36 @@ export default function AdminPage() {
   }
 
   async function saveArticle() {
-    if (!isAdmin) {
-      setMessage("Solo l'admin può pubblicare articoli.")
-      return
-    }
+    if (!isAdmin) return
 
-    if (!form.title || !form.category || !form.description) {
-      setMessage("Compila almeno titolo, categoria e descrizione.")
+    if (
+      !articleForm.title ||
+      !articleForm.category ||
+      !articleForm.description
+    ) {
+      setMessage("Compila titolo, categoria e descrizione articolo.")
       return
     }
 
     const articleData = {
-      slug: createSlug(form.title),
-      ...form,
+      slug: createSlug(articleForm.title),
+      ...articleForm,
       publishDate:
-        form.publishDate || new Date().toLocaleDateString("it-IT"),
-      seoTitle: form.seoTitle || form.title,
-      seoDescription: form.seoDescription || form.description,
+        articleForm.publishDate || new Date().toLocaleDateString("it-IT"),
+      seoTitle: articleForm.seoTitle || articleForm.title,
+      seoDescription: articleForm.seoDescription || articleForm.description,
     }
 
-    if (editingId) {
-      await updateDoc(doc(db, "articles", editingId), articleData)
-      setEditingId(null)
-      setMessage("Articolo modificato correttamente.")
+    if (editingArticleId) {
+      await updateDoc(doc(db, "articles", editingArticleId), articleData)
+      setEditingArticleId(null)
+      setMessage("Articolo modificato.")
     } else {
-      await addDoc(articlesCollection, articleData)
-      setMessage("Articolo pubblicato correttamente.")
+      await addDoc(collection(db, "articles"), articleData)
+      setMessage("Articolo pubblicato.")
     }
 
-    setForm({
+    setArticleForm({
       title: "",
       category: "",
       description: "",
@@ -166,13 +178,58 @@ export default function AdminPage() {
       seoDescription: "",
     })
 
-    loadArticles()
+    loadDashboard()
+  }
+
+  async function savePodcast() {
+    if (!isAdmin) return
+
+    if (
+      !podcastForm.title ||
+      !podcastForm.category ||
+      !podcastForm.description ||
+      !podcastForm.videoUrl
+    ) {
+      setMessage("Compila titolo, categoria, descrizione e URL video podcast.")
+      return
+    }
+
+    const podcastData = {
+      slug: createSlug(podcastForm.title),
+      ...podcastForm,
+      publishDate:
+        podcastForm.publishDate || new Date().toLocaleDateString("it-IT"),
+      seoTitle: podcastForm.seoTitle || podcastForm.title,
+      seoDescription: podcastForm.seoDescription || podcastForm.description,
+    }
+
+    if (editingPodcastId) {
+      await updateDoc(doc(db, "podcasts", editingPodcastId), podcastData)
+      setEditingPodcastId(null)
+      setMessage("Podcast modificato.")
+    } else {
+      await addDoc(collection(db, "podcasts"), podcastData)
+      setMessage("Podcast pubblicato.")
+    }
+
+    setPodcastForm({
+      title: "",
+      category: "",
+      description: "",
+      content: "",
+      coverImage: "",
+      videoUrl: "",
+      publishDate: "",
+      seoTitle: "",
+      seoDescription: "",
+    })
+
+    loadDashboard()
   }
 
   function editArticle(article) {
-    setEditingId(article.id)
-
-    setForm({
+    setEditingArticleId(article.id)
+    setArticleForm({
       title: article.title || "",
       category: article.category || "",
       description: article.description || "",
@@ -184,64 +241,31 @@ export default function AdminPage() {
     })
   }
 
-  async function deleteArticle(id) {
-    await deleteDoc(doc(db, "articles", id))
-    setMessage("Articolo eliminato.")
-    loadArticles()
-  }
-
-  async function savePodcast() {
-    if (!isAdmin) {
-      setMessage("Solo l'admin può pubblicare podcast.")
-      return
-    }
-
-    if (!podcastForm.title || !podcastForm.category || !podcastForm.description) {
-      setMessage("Compila almeno titolo, categoria e descrizione podcast.")
-      return
-    }
-
-    const podcastData = {
-      ...podcastForm,
-      slug: createSlug(podcastForm.title),
-    }
-
-    if (editingPodcastId) {
-      await updateDoc(doc(db, "podcasts", editingPodcastId), podcastData)
-      setEditingPodcastId(null)
-      setMessage("Podcast modificato correttamente.")
-    } else {
-      await addDoc(podcastsCollection, podcastData)
-      setMessage("Podcast pubblicato correttamente.")
-    }
-
-    setPodcastForm({
-      title: "",
-      category: "",
-      description: "",
-      image: "",
-      videoUrl: "",
-    })
-
-    loadPodcasts()
-  }
-
   function editPodcast(podcast) {
     setEditingPodcastId(podcast.id)
-
     setPodcastForm({
       title: podcast.title || "",
       category: podcast.category || "",
-      description: podcast.description || podcast.desc || "",
-      image: podcast.image || "",
+      description: podcast.description || "",
+      content: podcast.content || "",
+      coverImage: podcast.coverImage || "",
       videoUrl: podcast.videoUrl || "",
+      publishDate: podcast.publishDate || "",
+      seoTitle: podcast.seoTitle || "",
+      seoDescription: podcast.seoDescription || "",
     })
+  }
+
+  async function deleteArticle(id) {
+    await deleteDoc(doc(db, "articles", id))
+    setMessage("Articolo eliminato.")
+    loadDashboard()
   }
 
   async function deletePodcast(id) {
     await deleteDoc(doc(db, "podcasts", id))
     setMessage("Podcast eliminato.")
-    loadPodcasts()
+    loadDashboard()
   }
 
   return (
@@ -258,17 +282,11 @@ export default function AdminPage() {
             Admin FattiDiretti
           </h1>
 
-          {message && (
-            <p className="mb-8 text-white/70 font-bold">
-              {message}
-            </p>
-          )}
+          {message && <p className="mb-8 text-white/70 font-bold">{message}</p>}
 
           {!isAdmin ? (
             <div className="max-w-xl p-8 rounded-[2rem] bg-white text-black">
-              <h2 className="text-3xl font-black mb-6">
-                Login admin
-              </h2>
+              <h2 className="text-3xl font-black mb-6">Login admin</h2>
 
               <div className="space-y-4">
                 <input
@@ -307,36 +325,57 @@ export default function AdminPage() {
             </div>
           ) : (
             <>
-              <div className="flex justify-between items-center mb-10">
-                <p className="text-white/50">
-                  Accesso effettuato come{" "}
-                  <span className="text-white font-bold">
-                    {user.email}
-                  </span>
-                </p>
+              <div className="grid md:grid-cols-4 gap-6 mb-12">
+                <div className="p-6 rounded-[2rem] bg-white text-black">
+                  <p className="text-black/50 font-bold">Visualizzazioni</p>
+                  <h3 className="text-4xl font-black mt-2">
+                    {stats.views || 0}
+                  </h3>
+                </div>
 
-                <button
-                  onClick={logoutAdmin}
-                  className="px-6 py-3 rounded-full border border-white/20 hover:bg-white/10"
-                >
-                  Logout
-                </button>
+                <div className="p-6 rounded-[2rem] bg-white text-black">
+                  <p className="text-black/50 font-bold">Registrazioni</p>
+                  <h3 className="text-4xl font-black mt-2">
+                    {registrations.length}
+                  </h3>
+                </div>
+
+                <div className="p-6 rounded-[2rem] bg-white text-black">
+                  <p className="text-black/50 font-bold">Articoli</p>
+                  <h3 className="text-4xl font-black mt-2">
+                    {articles.length}
+                  </h3>
+                </div>
+
+                <div className="p-6 rounded-[2rem] bg-white text-black">
+                  <p className="text-black/50 font-bold">Podcast</p>
+                  <h3 className="text-4xl font-black mt-2">
+                    {podcasts.length}
+                  </h3>
+                </div>
               </div>
 
-              <div className="grid lg:grid-cols-2 gap-8">
+              <button
+                onClick={logoutAdmin}
+                className="mb-10 px-6 py-3 rounded-full border border-white/20 hover:bg-white/10"
+              >
+                Logout
+              </button>
+
+              <div className="grid lg:grid-cols-2 gap-8 mb-20">
                 <div className="p-8 rounded-[2rem] bg-white text-black">
                   <h2 className="text-3xl font-black mb-6">
-                    {editingId ? "Modifica articolo" : "Nuovo articolo"}
+                    {editingArticleId ? "Modifica articolo" : "Nuovo articolo"}
                   </h2>
 
                   <div className="space-y-4">
                     <input
                       type="text"
                       placeholder="Titolo articolo"
-                      value={form.title}
+                      value={articleForm.title}
                       onChange={(e) =>
-                        setForm({
-                          ...form,
+                        setArticleForm({
+                          ...articleForm,
                           title: e.target.value,
                         })
                       }
@@ -346,10 +385,10 @@ export default function AdminPage() {
                     <input
                       type="text"
                       placeholder="Categoria"
-                      value={form.category}
+                      value={articleForm.category}
                       onChange={(e) =>
-                        setForm({
-                          ...form,
+                        setArticleForm({
+                          ...articleForm,
                           category: e.target.value,
                         })
                       }
@@ -359,23 +398,11 @@ export default function AdminPage() {
                     <input
                       type="text"
                       placeholder="URL immagine copertina"
-                      value={form.coverImage}
+                      value={articleForm.coverImage}
                       onChange={(e) =>
-                        setForm({
-                          ...form,
+                        setArticleForm({
+                          ...articleForm,
                           coverImage: e.target.value,
-                        })
-                      }
-                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                    />
-
-                    <input
-                      type="date"
-                      value={form.publishDate}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          publishDate: e.target.value,
                         })
                       }
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
@@ -384,36 +411,34 @@ export default function AdminPage() {
                     <textarea
                       rows="3"
                       placeholder="Descrizione breve"
-                      value={form.description}
+                      value={articleForm.description}
                       onChange={(e) =>
-                        setForm({
-                          ...form,
+                        setArticleForm({
+                          ...articleForm,
                           description: e.target.value,
                         })
                       }
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none resize-none"
                     />
 
-                    <div className="bg-white text-black rounded-2xl overflow-hidden">
-                      <ReactQuill
-                        theme="snow"
-                        value={form.content}
-                        onChange={(value) =>
-                          setForm({
-                            ...form,
-                            content: value,
-                          })
-                        }
-                      />
-                    </div>
+                    <ReactQuill
+                      theme="snow"
+                      value={articleForm.content}
+                      onChange={(value) =>
+                        setArticleForm({
+                          ...articleForm,
+                          content: value,
+                        })
+                      }
+                    />
 
                     <input
                       type="text"
                       placeholder="SEO title"
-                      value={form.seoTitle}
+                      value={articleForm.seoTitle}
                       onChange={(e) =>
-                        setForm({
-                          ...form,
+                        setArticleForm({
+                          ...articleForm,
                           seoTitle: e.target.value,
                         })
                       }
@@ -423,10 +448,10 @@ export default function AdminPage() {
                     <textarea
                       rows="3"
                       placeholder="SEO description"
-                      value={form.seoDescription}
+                      value={articleForm.seoDescription}
                       onChange={(e) =>
-                        setForm({
-                          ...form,
+                        setArticleForm({
+                          ...articleForm,
                           seoDescription: e.target.value,
                         })
                       }
@@ -437,64 +462,13 @@ export default function AdminPage() {
                       onClick={saveArticle}
                       className="w-full px-8 py-4 rounded-full bg-black text-white font-black"
                     >
-                      {editingId ? "Salva modifiche" : "Pubblica articolo"}
+                      {editingArticleId
+                        ? "Salva articolo"
+                        : "Pubblica articolo"}
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  {articles.map((article) => (
-                    <div
-                      key={article.id}
-                      className="p-6 rounded-[2rem] bg-white/5 border border-white/10"
-                    >
-                      {article.coverImage && (
-                        <img
-                          src={article.coverImage}
-                          alt={article.title}
-                          className="w-full h-52 object-cover rounded-2xl mb-5"
-                        />
-                      )}
-
-                      <p className="uppercase tracking-[0.25em] text-white/40 text-xs mb-3">
-                        {article.category}
-                      </p>
-
-                      <h3 className="text-2xl font-black mb-3">
-                        {article.title}
-                      </h3>
-
-                      <p className="text-white/50 mb-3">
-                        {article.description}
-                      </p>
-
-                      {article.slug && (
-                        <p className="text-white/30 text-sm mb-6">
-                          URL: /article/{article.slug}
-                        </p>
-                      )}
-
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => editArticle(article)}
-                          className="px-5 py-3 rounded-full bg-white text-black font-bold"
-                        >
-                          Modifica
-                        </button>
-
-                        <button
-                          onClick={() => deleteArticle(article.id)}
-                          className="px-5 py-3 rounded-full border border-red-400/40 text-red-300 font-bold"
-                        >
-                          Elimina
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-20 grid lg:grid-cols-2 gap-8">
                 <div className="p-8 rounded-[2rem] bg-white text-black">
                   <h2 className="text-3xl font-black mb-6">
                     {editingPodcastId ? "Modifica podcast" : "Nuovo podcast"}
@@ -529,12 +503,12 @@ export default function AdminPage() {
 
                     <input
                       type="text"
-                      placeholder="URL immagine copertina podcast"
-                      value={podcastForm.image}
+                      placeholder="URL immagine copertina"
+                      value={podcastForm.coverImage}
                       onChange={(e) =>
                         setPodcastForm({
                           ...podcastForm,
-                          image: e.target.value,
+                          coverImage: e.target.value,
                         })
                       }
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
@@ -542,7 +516,7 @@ export default function AdminPage() {
 
                     <input
                       type="text"
-                      placeholder="URL video YouTube/Vimeo"
+                      placeholder="URL video embed YouTube"
                       value={podcastForm.videoUrl}
                       onChange={(e) =>
                         setPodcastForm({
@@ -555,7 +529,7 @@ export default function AdminPage() {
 
                     <textarea
                       rows="3"
-                      placeholder="Descrizione podcast"
+                      placeholder="Descrizione breve"
                       value={podcastForm.description}
                       onChange={(e) =>
                         setPodcastForm({
@@ -566,42 +540,80 @@ export default function AdminPage() {
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none resize-none"
                     />
 
+                    <ReactQuill
+                      theme="snow"
+                      value={podcastForm.content}
+                      onChange={(value) =>
+                        setPodcastForm({
+                          ...podcastForm,
+                          content: value,
+                        })
+                      }
+                    />
+
                     <button
                       onClick={savePodcast}
                       className="w-full px-8 py-4 rounded-full bg-black text-white font-black"
                     >
-                      {editingPodcastId ? "Salva podcast" : "Pubblica podcast"}
+                      {editingPodcastId
+                        ? "Salva podcast"
+                        : "Pubblica podcast"}
                     </button>
                   </div>
                 </div>
+              </div>
+
+              <h2 className="text-4xl font-black mb-6">Contenuti pubblicati</h2>
+
+              <div className="grid lg:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <h3 className="text-2xl font-black">Articoli</h3>
+
+                  {articles.map((article) => (
+                    <div
+                      key={article.id}
+                      className="p-6 rounded-[2rem] bg-white/5 border border-white/10"
+                    >
+                      <h4 className="text-2xl font-black">{article.title}</h4>
+                      <p className="text-white/40">{article.category}</p>
+                      <p className="text-white/30 text-sm">
+                        /article/{article.slug}
+                      </p>
+
+                      <div className="flex gap-3 mt-5">
+                        <button
+                          onClick={() => editArticle(article)}
+                          className="px-5 py-3 rounded-full bg-white text-black font-bold"
+                        >
+                          Modifica
+                        </button>
+
+                        <button
+                          onClick={() => deleteArticle(article.id)}
+                          className="px-5 py-3 rounded-full border border-red-400/40 text-red-300 font-bold"
+                        >
+                          Elimina
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
                 <div className="space-y-4">
+                  <h3 className="text-2xl font-black">Podcast</h3>
+
                   {podcasts.map((podcast) => (
                     <div
                       key={podcast.id}
                       className="p-6 rounded-[2rem] bg-white/5 border border-white/10"
                     >
-                      {podcast.image && (
-                        <img
-                          src={podcast.image}
-                          alt={podcast.title}
-                          className="w-full h-52 object-cover rounded-2xl mb-5"
-                        />
-                      )}
-
-                      <p className="uppercase tracking-[0.25em] text-white/40 text-xs mb-3">
-                        {podcast.category}
+                      <h4 className="text-2xl font-black">{podcast.title}</h4>
+                      <p className="text-white/40">{podcast.category}</p>
+                      <p className="text-white/30 text-sm">
+                        /podcast/{podcast.slug}
                       </p>
 
-                      <h3 className="text-2xl font-black mb-3">
-                        {podcast.title}
-                      </h3>
-
-                      <p className="text-white/50 mb-6">
-                        {podcast.description}
-                      </p>
-
-                      <div className="flex gap-3">
+                      <div className="flex gap-3 mt-5">
                         <button
                           onClick={() => editPodcast(podcast)}
                           className="px-5 py-3 rounded-full bg-white text-black font-bold"
@@ -619,6 +631,21 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <h2 className="text-4xl font-black mt-20 mb-6">
+                Utenti registrati
+              </h2>
+
+              <div className="space-y-3">
+                {registrations.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-4 rounded-2xl bg-white/5 border border-white/10 text-white/60"
+                  >
+                    {item.email}
+                  </div>
+                ))}
               </div>
             </>
           )}

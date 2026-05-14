@@ -1,20 +1,30 @@
-import { useEffect, useMemo, useState } from "react"
-import { collection, getDocs } from "firebase/firestore"
+import { useEffect, useState } from "react"
+import {
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  increment,
+  serverTimestamp,
+  addDoc,
+} from "firebase/firestore"
+import { createUserWithEmailAndPassword, signOut } from "firebase/auth"
 import { Helmet } from "react-helmet-async"
 import { Link } from "react-router-dom"
-import { db } from "../firebase"
+import { db, auth } from "../firebase"
 
 import Navbar from "../components/Navbar"
 import Footer from "../components/Footer"
 import ArticleCard from "../components/ArticleCard"
-import PodcastCard from "../components/PodcastCard"
-import RegisterBox from "../components/RegisterBox"
 
 export default function Home() {
   const [articles, setArticles] = useState([])
   const [podcasts, setPodcasts] = useState([])
-  const [search, setSearch] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("Tutte")
+  const [registerForm, setRegisterForm] = useState({
+    email: "",
+    password: "",
+  })
+  const [registerMessage, setRegisterMessage] = useState("")
 
   useEffect(() => {
     async function loadData() {
@@ -36,30 +46,65 @@ export default function Home() {
       )
     }
 
+    async function trackView() {
+      if (sessionStorage.getItem("fattidiretti-viewed")) return
+
+      await setDoc(
+        doc(db, "stats", "main"),
+        {
+          views: increment(1),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+
+      sessionStorage.setItem("fattidiretti-viewed", "true")
+    }
+
     loadData()
+    trackView()
   }, [])
 
-  const categories = useMemo(() => {
-    const list = articles.map((article) => article.category).filter(Boolean)
-    return ["Tutte", ...new Set(list)]
-  }, [articles])
+  async function registerUser() {
+    try {
+      setRegisterMessage("")
 
-  const filteredArticles = useMemo(() => {
-    return articles.filter((article) => {
-      const matchesSearch =
-        article.title?.toLowerCase().includes(search.toLowerCase()) ||
-        article.description?.toLowerCase().includes(search.toLowerCase()) ||
-        article.category?.toLowerCase().includes(search.toLowerCase())
+      if (!registerForm.email || !registerForm.password) {
+        setRegisterMessage("Inserisci email e password.")
+        return
+      }
 
-      const matchesCategory =
-        selectedCategory === "Tutte" || article.category === selectedCategory
+      if (registerForm.password.length < 6) {
+        setRegisterMessage("La password deve avere almeno 6 caratteri.")
+        return
+      }
 
-      return matchesSearch && matchesCategory
-    })
-  }, [articles, search, selectedCategory])
+      await createUserWithEmailAndPassword(
+        auth,
+        registerForm.email,
+        registerForm.password
+      )
 
-  const featuredArticle = filteredArticles[0]
-  const secondaryArticles = filteredArticles.slice(1, 4)
+      await addDoc(collection(db, "registrations"), {
+        email: registerForm.email,
+        createdAt: serverTimestamp(),
+      })
+
+      await signOut(auth)
+
+      setRegisterForm({ email: "", password: "" })
+      setRegisterMessage("Registrazione completata.")
+    } catch (error) {
+      if (error.code === "auth/email-already-in-use") {
+        setRegisterMessage("Questa email è già registrata.")
+      } else {
+        setRegisterMessage("Errore durante la registrazione.")
+      }
+    }
+  }
+
+  const featuredArticle = articles[0]
+  const secondaryArticles = articles.slice(1, 4)
 
   return (
     <>
@@ -86,37 +131,9 @@ export default function Home() {
             </h1>
 
             <p className="text-xl md:text-2xl text-white/60 max-w-3xl leading-relaxed">
-              Storie, inchieste e contenuti editoriali raccontati con uno stile
-              moderno, aggressivo e senza giri di parole.
+              Storie, inchieste, video podcast e contenuti editoriali raccontati
+              con uno stile moderno, aggressivo e senza giri di parole.
             </p>
-          </div>
-        </section>
-
-        <section className="px-6 py-16 border-b border-white/10">
-          <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-6">
-            <input
-              type="text"
-              placeholder="Cerca articoli..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full px-6 py-4 rounded-full bg-white/10 border border-white/10 outline-none text-white"
-            />
-
-            <div className="flex gap-3 overflow-x-auto">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-6 py-4 rounded-full font-bold whitespace-nowrap transition ${
-                    selectedCategory === category
-                      ? "bg-white text-black"
-                      : "bg-white/10 text-white border border-white/10"
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
           </div>
         </section>
 
@@ -154,7 +171,7 @@ export default function Home() {
                     {featuredArticle.category}
                   </p>
 
-                  <h3 className="text-5xl md:text-7xl font-black leading-[0.95] mb-8 group-hover:text-white/70 transition">
+                  <h3 className="text-5xl md:text-7xl font-black leading-[0.95] mb-8">
                     {featuredArticle.title}
                   </h3>
 
@@ -168,9 +185,7 @@ export default function Home() {
                 </div>
               </Link>
             ) : (
-              <p className="text-white/50 text-xl">
-                Nessun articolo pubblicato.
-              </p>
+              <p className="text-white/50 text-xl">Nessun articolo pubblicato.</p>
             )}
           </div>
         </section>
@@ -201,9 +216,7 @@ export default function Home() {
                       {article.title}
                     </h3>
 
-                    <p className="text-white/50">
-                      {article.description}
-                    </p>
+                    <p className="text-white/50">{article.description}</p>
                   </Link>
                 ))}
               </div>
@@ -211,47 +224,32 @@ export default function Home() {
           </section>
         )}
 
-        <section id="articles" className="px-6 py-24 bg-white text-black">
+        <section className="px-6 py-24 bg-white text-black">
           <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-14">
-              <div>
-                <p className="uppercase tracking-[0.35em] text-black/40 text-sm">
-                  Tutti gli articoli
-                </p>
+            <p className="uppercase tracking-[0.35em] text-black/40 text-sm">
+              Tutti gli articoli
+            </p>
 
-                <h2 className="text-5xl md:text-7xl font-black mt-4">
-                  Ultime pubblicazioni
-                </h2>
-              </div>
+            <h2 className="text-5xl md:text-7xl font-black mt-4 mb-14">
+              Ultime pubblicazioni
+            </h2>
 
-              <p className="text-black/50 max-w-xl text-lg">
-                Una selezione aggiornata di reportage, opinioni, cronaca,
-                cultura e contenuti editoriali firmati FattiDiretti.
-              </p>
+            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
+              {articles.map((article) => (
+                <ArticleCard key={article.id} article={article} />
+              ))}
             </div>
-
-            {filteredArticles.length === 0 ? (
-              <p className="text-black/50 text-xl">
-                Nessun articolo trovato.
-              </p>
-            ) : (
-              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-                {filteredArticles.map((article) => (
-                  <ArticleCard key={article.id} article={article} />
-                ))}
-              </div>
-            )}
           </div>
         </section>
 
-        <section id="podcast" className="px-6 py-24 bg-black text-white">
+        <section id="podcast" className="px-6 py-28 bg-[#080808] text-white">
           <div className="max-w-7xl mx-auto">
             <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
               Video Podcast
             </p>
 
             <h2 className="text-5xl md:text-7xl font-black mt-4 mb-14">
-              Podcast e approfondimenti
+              Podcast FattiDiretti
             </h2>
 
             {podcasts.length === 0 ? (
@@ -261,14 +259,100 @@ export default function Home() {
             ) : (
               <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
                 {podcasts.map((podcast) => (
-                  <PodcastCard key={podcast.id} podcast={podcast} />
+                  <Link
+                    key={podcast.id}
+                    to={`/podcast/${podcast.slug}`}
+                    className="rounded-[2rem] overflow-hidden bg-white/5 border border-white/10 hover:bg-white/10 transition"
+                  >
+                    {podcast.coverImage && (
+                      <img
+                        src={podcast.coverImage}
+                        alt={podcast.title}
+                        className="w-full aspect-video object-cover"
+                      />
+                    )}
+
+                    <div className="p-7">
+                      <p className="uppercase tracking-[0.25em] text-white/40 text-xs mb-4">
+                        {podcast.category}
+                      </p>
+
+                      <h3 className="text-3xl font-black mb-5">
+                        {podcast.title}
+                      </h3>
+
+                      <p className="text-white/50">{podcast.description}</p>
+                    </div>
+                  </Link>
                 ))}
               </div>
             )}
           </div>
         </section>
 
-        <RegisterBox />
+        <section id="register" className="px-6 py-28 bg-white text-black">
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-10 items-center">
+            <div>
+              <p className="uppercase tracking-[0.35em] text-black/40 text-sm">
+                Community
+              </p>
+
+              <h2 className="text-5xl md:text-7xl font-black mt-4 mb-8">
+                Registrazione facoltativa.
+              </h2>
+
+              <p className="text-xl text-black/60 leading-relaxed">
+                I visitatori possono registrarsi per ricevere aggiornamenti,
+                podcast, contenuti extra e future aree premium.
+              </p>
+            </div>
+
+            <div className="p-8 rounded-[2rem] bg-black text-white">
+              <h3 className="text-3xl font-black mb-6">Crea account</h3>
+
+              {registerMessage && (
+                <p className="mb-5 text-white/70 font-bold">
+                  {registerMessage}
+                </p>
+              )}
+
+              <div className="space-y-4">
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={registerForm.email}
+                  onChange={(e) =>
+                    setRegisterForm({
+                      ...registerForm,
+                      email: e.target.value,
+                    })
+                  }
+                  className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/10 outline-none"
+                />
+
+                <input
+                  type="password"
+                  placeholder="Password almeno 6 caratteri"
+                  value={registerForm.password}
+                  onChange={(e) =>
+                    setRegisterForm({
+                      ...registerForm,
+                      password: e.target.value,
+                    })
+                  }
+                  className="w-full px-5 py-4 rounded-2xl bg-white/10 border border-white/10 outline-none"
+                />
+
+                <button
+                  onClick={registerUser}
+                  className="w-full px-8 py-4 rounded-full bg-white text-black font-black"
+                >
+                  Registrati
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <Footer />
       </main>
