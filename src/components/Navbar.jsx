@@ -10,20 +10,20 @@ export default function Navbar() {
 
         <div className="flex gap-6 text-sm text-white/60">
           <Link to="/" className="hover:text-white transition">
-            Home
-          </Link>
+  Home
+</Link>
 
-          <a href="/#podcast" className="hover:text-white transition">
-            Podcast
-          </a>
+<Link to="/#podcast" className="hover:text-white transition">
+  Podcast
+</Link>
 
-          <a href="/#register" className="hover:text-white transition">
-            Registrati
-          </a>
+<Link to="/#register" className="hover:text-white transition">
+  Registrati
+</Link>
 
-          <Link to="/admin" className="hover:text-white transition">
-            Admin
-          </Link>
+<Link to="/admin" className="hover:text-white transition">
+  Admin
+</Link>
         </div>
       </div>
     </nav>
