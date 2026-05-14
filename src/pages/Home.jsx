@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { collection, getDocs } from "firebase/firestore"
 import { Helmet } from "react-helmet-async"
 import { Link } from "react-router-dom"
@@ -7,28 +7,59 @@ import { db } from "../firebase"
 import Navbar from "../components/Navbar"
 import Footer from "../components/Footer"
 import ArticleCard from "../components/ArticleCard"
+import PodcastCard from "../components/PodcastCard"
+import RegisterBox from "../components/RegisterBox"
 
 export default function Home() {
   const [articles, setArticles] = useState([])
+  const [podcasts, setPodcasts] = useState([])
+  const [search, setSearch] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("Tutte")
 
   useEffect(() => {
-    async function loadArticles() {
-      const data = await getDocs(collection(db, "articles"))
+    async function loadData() {
+      const articlesData = await getDocs(collection(db, "articles"))
+      const podcastsData = await getDocs(collection(db, "podcasts"))
 
       setArticles(
-        data.docs.map((doc) => ({
+        articlesData.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+      )
+
+      setPodcasts(
+        podcastsData.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }))
       )
     }
 
-    loadArticles()
+    loadData()
   }, [])
 
-  const featuredArticle = articles[0]
-  const secondaryArticles = articles.slice(1, 4)
-  const latestArticles = articles.slice(4)
+  const categories = useMemo(() => {
+    const list = articles.map((article) => article.category).filter(Boolean)
+    return ["Tutte", ...new Set(list)]
+  }, [articles])
+
+  const filteredArticles = useMemo(() => {
+    return articles.filter((article) => {
+      const matchesSearch =
+        article.title?.toLowerCase().includes(search.toLowerCase()) ||
+        article.description?.toLowerCase().includes(search.toLowerCase()) ||
+        article.category?.toLowerCase().includes(search.toLowerCase())
+
+      const matchesCategory =
+        selectedCategory === "Tutte" || article.category === selectedCategory
+
+      return matchesSearch && matchesCategory
+    })
+  }, [articles, search, selectedCategory])
+
+  const featuredArticle = filteredArticles[0]
+  const secondaryArticles = filteredArticles.slice(1, 4)
 
   return (
     <>
@@ -61,18 +92,43 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="px-6 py-16 border-b border-white/10">
+          <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-6">
+            <input
+              type="text"
+              placeholder="Cerca articoli..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-6 py-4 rounded-full bg-white/10 border border-white/10 outline-none text-white"
+            />
+
+            <div className="flex gap-3 overflow-x-auto">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-6 py-4 rounded-full font-bold whitespace-nowrap transition ${
+                    selectedCategory === category
+                      ? "bg-white text-black"
+                      : "bg-white/10 text-white border border-white/10"
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="px-6 py-20">
           <div className="max-w-7xl mx-auto">
-            <div className="flex items-end justify-between mb-10">
-              <div>
-                <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
-                  Primo piano
-                </p>
-                <h2 className="text-5xl md:text-7xl font-black mt-4">
-                  La storia principale
-                </h2>
-              </div>
-            </div>
+            <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
+              Primo piano
+            </p>
+
+            <h2 className="text-5xl md:text-7xl font-black mt-4 mb-10">
+              La storia principale
+            </h2>
 
             {featuredArticle ? (
               <Link
@@ -155,7 +211,7 @@ export default function Home() {
           </section>
         )}
 
-        <section className="px-6 py-24 bg-white text-black">
+        <section id="articles" className="px-6 py-24 bg-white text-black">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-14">
               <div>
@@ -174,13 +230,45 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-              {articles.map((article) => (
-                <ArticleCard key={article.id} article={article} />
-              ))}
-            </div>
+            {filteredArticles.length === 0 ? (
+              <p className="text-black/50 text-xl">
+                Nessun articolo trovato.
+              </p>
+            ) : (
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
+                {filteredArticles.map((article) => (
+                  <ArticleCard key={article.id} article={article} />
+                ))}
+              </div>
+            )}
           </div>
         </section>
+
+        <section id="podcast" className="px-6 py-24 bg-black text-white">
+          <div className="max-w-7xl mx-auto">
+            <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
+              Video Podcast
+            </p>
+
+            <h2 className="text-5xl md:text-7xl font-black mt-4 mb-14">
+              Podcast e approfondimenti
+            </h2>
+
+            {podcasts.length === 0 ? (
+              <p className="text-white/50 text-xl">
+                Nessun podcast pubblicato.
+              </p>
+            ) : (
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
+                {podcasts.map((podcast) => (
+                  <PodcastCard key={podcast.id} podcast={podcast} />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <RegisterBox />
 
         <Footer />
       </main>

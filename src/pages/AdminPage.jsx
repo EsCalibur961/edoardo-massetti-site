@@ -23,7 +23,9 @@ export default function AdminPage() {
 
   const [user, setUser] = useState(null)
   const [articles, setArticles] = useState([])
+  const [podcasts, setPodcasts] = useState([])
   const [editingId, setEditingId] = useState(null)
+  const [editingPodcastId, setEditingPodcastId] = useState(null)
   const [message, setMessage] = useState("")
 
   const [loginForm, setLoginForm] = useState({
@@ -42,15 +44,27 @@ export default function AdminPage() {
     seoDescription: "",
   })
 
+  const [podcastForm, setPodcastForm] = useState({
+    title: "",
+    category: "",
+    description: "",
+    image: "",
+    videoUrl: "",
+  })
+
   const isAdmin = user?.email === ADMIN_EMAIL
   const articlesCollection = collection(db, "articles")
+  const podcastsCollection = collection(db, "podcasts")
 
   function createSlug(text) {
     return text
       .toLowerCase()
       .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9\s-]/g, "")
       .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
   }
 
   async function loadArticles() {
@@ -64,8 +78,20 @@ export default function AdminPage() {
     )
   }
 
+  async function loadPodcasts() {
+    const data = await getDocs(podcastsCollection)
+
+    setPodcasts(
+      data.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }))
+    )
+  }
+
   useEffect(() => {
     loadArticles()
+    loadPodcasts()
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser)
@@ -162,6 +188,60 @@ export default function AdminPage() {
     await deleteDoc(doc(db, "articles", id))
     setMessage("Articolo eliminato.")
     loadArticles()
+  }
+
+  async function savePodcast() {
+    if (!isAdmin) {
+      setMessage("Solo l'admin può pubblicare podcast.")
+      return
+    }
+
+    if (!podcastForm.title || !podcastForm.category || !podcastForm.description) {
+      setMessage("Compila almeno titolo, categoria e descrizione podcast.")
+      return
+    }
+
+    const podcastData = {
+      ...podcastForm,
+      slug: createSlug(podcastForm.title),
+    }
+
+    if (editingPodcastId) {
+      await updateDoc(doc(db, "podcasts", editingPodcastId), podcastData)
+      setEditingPodcastId(null)
+      setMessage("Podcast modificato correttamente.")
+    } else {
+      await addDoc(podcastsCollection, podcastData)
+      setMessage("Podcast pubblicato correttamente.")
+    }
+
+    setPodcastForm({
+      title: "",
+      category: "",
+      description: "",
+      image: "",
+      videoUrl: "",
+    })
+
+    loadPodcasts()
+  }
+
+  function editPodcast(podcast) {
+    setEditingPodcastId(podcast.id)
+
+    setPodcastForm({
+      title: podcast.title || "",
+      category: podcast.category || "",
+      description: podcast.description || podcast.desc || "",
+      image: podcast.image || "",
+      videoUrl: podcast.videoUrl || "",
+    })
+  }
+
+  async function deletePodcast(id) {
+    await deleteDoc(doc(db, "podcasts", id))
+    setMessage("Podcast eliminato.")
+    loadPodcasts()
   }
 
   return (
@@ -404,6 +484,133 @@ export default function AdminPage() {
 
                         <button
                           onClick={() => deleteArticle(article.id)}
+                          className="px-5 py-3 rounded-full border border-red-400/40 text-red-300 font-bold"
+                        >
+                          Elimina
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-20 grid lg:grid-cols-2 gap-8">
+                <div className="p-8 rounded-[2rem] bg-white text-black">
+                  <h2 className="text-3xl font-black mb-6">
+                    {editingPodcastId ? "Modifica podcast" : "Nuovo podcast"}
+                  </h2>
+
+                  <div className="space-y-4">
+                    <input
+                      type="text"
+                      placeholder="Titolo podcast"
+                      value={podcastForm.title}
+                      onChange={(e) =>
+                        setPodcastForm({
+                          ...podcastForm,
+                          title: e.target.value,
+                        })
+                      }
+                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                    />
+
+                    <input
+                      type="text"
+                      placeholder="Categoria podcast"
+                      value={podcastForm.category}
+                      onChange={(e) =>
+                        setPodcastForm({
+                          ...podcastForm,
+                          category: e.target.value,
+                        })
+                      }
+                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                    />
+
+                    <input
+                      type="text"
+                      placeholder="URL immagine copertina podcast"
+                      value={podcastForm.image}
+                      onChange={(e) =>
+                        setPodcastForm({
+                          ...podcastForm,
+                          image: e.target.value,
+                        })
+                      }
+                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                    />
+
+                    <input
+                      type="text"
+                      placeholder="URL video YouTube/Vimeo"
+                      value={podcastForm.videoUrl}
+                      onChange={(e) =>
+                        setPodcastForm({
+                          ...podcastForm,
+                          videoUrl: e.target.value,
+                        })
+                      }
+                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                    />
+
+                    <textarea
+                      rows="3"
+                      placeholder="Descrizione podcast"
+                      value={podcastForm.description}
+                      onChange={(e) =>
+                        setPodcastForm({
+                          ...podcastForm,
+                          description: e.target.value,
+                        })
+                      }
+                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none resize-none"
+                    />
+
+                    <button
+                      onClick={savePodcast}
+                      className="w-full px-8 py-4 rounded-full bg-black text-white font-black"
+                    >
+                      {editingPodcastId ? "Salva podcast" : "Pubblica podcast"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {podcasts.map((podcast) => (
+                    <div
+                      key={podcast.id}
+                      className="p-6 rounded-[2rem] bg-white/5 border border-white/10"
+                    >
+                      {podcast.image && (
+                        <img
+                          src={podcast.image}
+                          alt={podcast.title}
+                          className="w-full h-52 object-cover rounded-2xl mb-5"
+                        />
+                      )}
+
+                      <p className="uppercase tracking-[0.25em] text-white/40 text-xs mb-3">
+                        {podcast.category}
+                      </p>
+
+                      <h3 className="text-2xl font-black mb-3">
+                        {podcast.title}
+                      </h3>
+
+                      <p className="text-white/50 mb-6">
+                        {podcast.description}
+                      </p>
+
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => editPodcast(podcast)}
+                          className="px-5 py-3 rounded-full bg-white text-black font-bold"
+                        >
+                          Modifica
+                        </button>
+
+                        <button
+                          onClick={() => deletePodcast(podcast.id)}
                           className="px-5 py-3 rounded-full border border-red-400/40 text-red-300 font-bold"
                         >
                           Elimina

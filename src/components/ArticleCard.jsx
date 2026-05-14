@@ -20,9 +20,13 @@ export default function ArticleCard({ article }) {
           {article.category}
         </p>
 
-        <h2 className="text-3xl font-black mb-4">{article.title}</h2>
+        <h2 className="text-3xl font-black mb-4">
+          {article.title}
+        </h2>
 
-        <p className="text-white/50 mb-6">{article.description}</p>
+        <p className="text-white/50 mb-6">
+          {article.description}
+        </p>
 
         <Link
           to={`/article/${article.slug}`}
