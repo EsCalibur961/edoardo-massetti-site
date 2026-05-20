@@ -7,8 +7,10 @@ import {
   increment,
   serverTimestamp,
 } from "firebase/firestore"
+
 import { Helmet } from "react-helmet-async"
 import { Link } from "react-router-dom"
+
 import { db } from "../firebase"
 
 import Navbar from "../components/Navbar"
@@ -19,51 +21,51 @@ export default function Home() {
   const [articles, setArticles] = useState([])
   const [podcasts, setPodcasts] = useState([])
 
+  function getTimestamp(item) {
+    if (item.publishDate) {
+      const parts = item.publishDate.split("/")
+
+      if (parts.length === 3) {
+        const day = Number(parts[0])
+        const month = Number(parts[1]) - 1
+        const year = Number(parts[2])
+
+        return new Date(year, month, day).getTime()
+      }
+    }
+
+    return (
+      item.createdAt?.seconds * 1000 ||
+      item.updatedAt?.seconds * 1000 ||
+      0
+    )
+  }
+
   useEffect(() => {
     async function loadData() {
       const articlesData = await getDocs(collection(db, "articles"))
       const podcastsData = await getDocs(collection(db, "podcasts"))
 
       const loadedArticles = articlesData.docs
-  .map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }))
-  .sort((a, b) => {
-    const aTime =
-      a.createdAt?.seconds ||
-      a.updatedAt?.seconds ||
-      0
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .sort((a, b) => {
+          return getTimestamp(b) - getTimestamp(a)
+        })
 
-    const bTime =
-      b.createdAt?.seconds ||
-      b.updatedAt?.seconds ||
-      0
+      const loadedPodcasts = podcastsData.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .sort((a, b) => {
+          return getTimestamp(b) - getTimestamp(a)
+        })
 
-    return bTime - aTime
-  })
       setArticles(loadedArticles)
-
-      setPodcasts(
-  podcastsData.docs
-    .map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }))
-    .sort((a, b) => {
-      const aTime =
-        a.createdAt?.seconds ||
-        a.updatedAt?.seconds ||
-        0
-
-      const bTime =
-        b.createdAt?.seconds ||
-        b.updatedAt?.seconds ||
-        0
-
-      return bTime - aTime
-    })
-)
+      setPodcasts(loadedPodcasts)
     }
 
     async function trackView() {
@@ -92,6 +94,7 @@ export default function Home() {
     <>
       <Helmet>
         <title>FattiDiretti | Giornalismo moderno e diretto</title>
+
         <meta
           name="description"
           content="FattiDiretti è un magazine moderno di articoli, reportage, podcast e storie raccontate senza filtri."
@@ -109,7 +112,9 @@ export default function Home() {
 
             <h1 className="text-6xl md:text-9xl font-black leading-[0.85] mb-8">
               FATTI
-              <span className="block text-white/35">DIRETTI</span>
+              <span className="block text-white/35">
+                DIRETTI
+              </span>
             </h1>
 
             <p className="text-lg md:text-2xl text-white/60 max-w-3xl leading-relaxed">
@@ -200,7 +205,9 @@ export default function Home() {
                       {article.title}
                     </h3>
 
-                    <p className="text-white/50">{article.description}</p>
+                    <p className="text-white/50">
+                      {article.description}
+                    </p>
                   </Link>
                 ))}
               </div>
@@ -231,7 +238,10 @@ export default function Home() {
 
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
               {articles.slice(0, 6).map((article) => (
-                <ArticleCard key={article.id} article={article} />
+                <ArticleCard
+                  key={article.id}
+                  article={article}
+                />
               ))}
             </div>
           </div>
@@ -287,7 +297,9 @@ export default function Home() {
                         {podcast.title}
                       </h3>
 
-                      <p className="text-white/50">{podcast.description}</p>
+                      <p className="text-white/50">
+                        {podcast.description}
+                      </p>
                     </div>
                   </Link>
                 ))}
