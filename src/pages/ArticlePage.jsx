@@ -7,6 +7,8 @@ import {
   serverTimestamp,
   query,
   orderBy,
+  doc,
+  getDoc,
 } from "firebase/firestore"
 import { onAuthStateChanged } from "firebase/auth"
 import { Helmet } from "react-helmet-async"
@@ -62,12 +64,33 @@ export default function ArticlePage() {
     loadComments()
   }, [article])
 
+  async function getUserDisplayName() {
+    if (!user) return "Utente"
+
+    const userSnap = await getDoc(doc(db, "users", user.uid))
+
+    if (userSnap.exists()) {
+      const userData = userSnap.data()
+
+      return (
+        userData.displayName ||
+        userData.username ||
+        "Utente FattiDiretti"
+      )
+    }
+
+    return user.displayName || "Utente FattiDiretti"
+  }
+
   async function publishComment() {
     if (!user || !commentText.trim() || !article?.id) return
 
+    const displayName = await getUserDisplayName()
+
     await addDoc(collection(db, "articles", article.id, "comments"), {
       text: commentText,
-      email: user.email,
+      userId: user.uid,
+      displayName,
       createdAt: serverTimestamp(),
     })
 
@@ -171,7 +194,7 @@ export default function ArticlePage() {
                     className="p-5 rounded-2xl bg-white/5 border border-white/10"
                   >
                     <p className="text-white/40 text-sm mb-2">
-                      {comment.email}
+                      {comment.displayName || "Utente FattiDiretti"}
                     </p>
 
                     <p className="text-white/80">{comment.text}</p>

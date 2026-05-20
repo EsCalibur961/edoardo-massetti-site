@@ -30,6 +30,7 @@ export default function AdminPage() {
   const [articles, setArticles] = useState([])
   const [podcasts, setPodcasts] = useState([])
   const [stats, setStats] = useState({ views: 0 })
+  const [registrationsCount, setRegistrationsCount] = useState(0)
 
   const [editingArticleId, setEditingArticleId] = useState(null)
   const [editingPodcastId, setEditingPodcastId] = useState(null)
@@ -70,6 +71,7 @@ export default function AdminPage() {
     publishDate: "",
     seoTitle: "",
     seoDescription: "",
+    createdAt: null,
   })
 
   const isAdmin = user?.email === ADMIN_EMAIL
@@ -85,6 +87,7 @@ export default function AdminPage() {
   async function loadDashboard() {
     const articlesData = await getDocs(collection(db, "articles"))
     const podcastsData = await getDocs(collection(db, "podcasts"))
+    const registrationsData = await getDocs(collection(db, "registrations"))
     const statsSnap = await getDoc(doc(db, "stats", "main"))
 
     setArticles(
@@ -94,18 +97,26 @@ export default function AdminPage() {
           ...item.data(),
         }))
         .sort((a, b) => {
-          const dateA = a.createdAt?.seconds || 0
-          const dateB = b.createdAt?.seconds || 0
-          return dateB - dateA
+          const aTime = a.createdAt?.seconds || a.updatedAt?.seconds || 0
+          const bTime = b.createdAt?.seconds || b.updatedAt?.seconds || 0
+          return bTime - aTime
         })
     )
 
     setPodcasts(
-      podcastsData.docs.map((item) => ({
-        id: item.id,
-        ...item.data(),
-      }))
+      podcastsData.docs
+        .map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }))
+        .sort((a, b) => {
+          const aTime = a.createdAt?.seconds || a.updatedAt?.seconds || 0
+          const bTime = b.createdAt?.seconds || b.updatedAt?.seconds || 0
+          return bTime - aTime
+        })
     )
+
+    setRegistrationsCount(registrationsData.size)
 
     if (statsSnap.exists()) {
       setStats(statsSnap.data())
@@ -251,7 +262,9 @@ export default function AdminPage() {
     const podcastData = {
       slug: createSlug(podcastForm.title),
       ...podcastForm,
-      createdAt: editingPodcastId ? podcastForm.createdAt || serverTimestamp() : serverTimestamp(),
+      createdAt: editingPodcastId
+        ? podcastForm.createdAt || serverTimestamp()
+        : serverTimestamp(),
       updatedAt: serverTimestamp(),
       publishDate:
         podcastForm.publishDate || new Date().toLocaleDateString("it-IT"),
@@ -278,6 +291,7 @@ export default function AdminPage() {
       publishDate: "",
       seoTitle: "",
       seoDescription: "",
+      createdAt: null,
     })
 
     loadDashboard()
@@ -388,7 +402,7 @@ export default function AdminPage() {
             </div>
           ) : (
             <>
-              <div className="grid md:grid-cols-3 gap-6 mb-12">
+              <div className="grid md:grid-cols-4 gap-6 mb-12">
                 <div className="p-6 rounded-[2rem] bg-white text-black">
                   <p className="text-black/50 font-bold">Visualizzazioni</p>
                   <h3 className="text-4xl font-black mt-2">
@@ -407,6 +421,13 @@ export default function AdminPage() {
                   <p className="text-black/50 font-bold">Podcast</p>
                   <h3 className="text-4xl font-black mt-2">
                     {podcasts.length}
+                  </h3>
+                </div>
+
+                <div className="p-6 rounded-[2rem] bg-white text-black">
+                  <p className="text-black/50 font-bold">Registrazioni</p>
+                  <h3 className="text-4xl font-black mt-2">
+                    {registrationsCount}
                   </h3>
                 </div>
               </div>
