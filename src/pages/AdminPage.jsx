@@ -741,11 +741,7 @@ export default function AdminPage() {
                   ))}
                 </div>
               </div>
-
-              <h2 className="text-4xl font-black mt-20 mb-6">
-                Utenti registrati
-              </h2>
-
+              
               <div className="space-y-3">
                 {registrations.map((item) => (
                   <div
