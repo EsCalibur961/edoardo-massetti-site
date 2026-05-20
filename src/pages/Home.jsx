@@ -30,13 +30,15 @@ export default function Home() {
     ...doc.data(),
   }))
   .sort((a, b) => {
-    const aTime = a.createdAt?.seconds
-      ? Number(a.createdAt.seconds)
-      : 0
+    const aTime =
+      a.createdAt?.seconds ||
+      a.updatedAt?.seconds ||
+      0
 
-    const bTime = b.createdAt?.seconds
-      ? Number(b.createdAt.seconds)
-      : 0
+    const bTime =
+      b.createdAt?.seconds ||
+      b.updatedAt?.seconds ||
+      0
 
     return bTime - aTime
   })
@@ -49,13 +51,15 @@ export default function Home() {
       ...doc.data(),
     }))
     .sort((a, b) => {
-      const aTime = a.createdAt?.seconds
-        ? Number(a.createdAt.seconds)
-        : 0
+      const aTime =
+        a.createdAt?.seconds ||
+        a.updatedAt?.seconds ||
+        0
 
-      const bTime = b.createdAt?.seconds
-        ? Number(b.createdAt.seconds)
-        : 0
+      const bTime =
+        b.createdAt?.seconds ||
+        b.updatedAt?.seconds ||
+        0
 
       return bTime - aTime
     })
