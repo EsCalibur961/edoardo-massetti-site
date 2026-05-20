@@ -7,6 +7,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  serverTimestamp,
 } from "firebase/firestore"
 import {
   signInWithEmailAndPassword,
@@ -28,10 +29,11 @@ export default function AdminPage() {
   const [user, setUser] = useState(null)
   const [articles, setArticles] = useState([])
   const [podcasts, setPodcasts] = useState([])
-  const [registrations, setRegistrations] = useState([])
   const [stats, setStats] = useState({ views: 0 })
+
   const [editingArticleId, setEditingArticleId] = useState(null)
   const [editingPodcastId, setEditingPodcastId] = useState(null)
+
   const [message, setMessage] = useState("")
   const [showLoginPassword, setShowLoginPassword] = useState(false)
   const [showAdminPasswords, setShowAdminPasswords] = useState(false)
@@ -55,6 +57,7 @@ export default function AdminPage() {
     publishDate: "",
     seoTitle: "",
     seoDescription: "",
+    createdAt: null,
   })
 
   const [podcastForm, setPodcastForm] = useState({
@@ -82,25 +85,23 @@ export default function AdminPage() {
   async function loadDashboard() {
     const articlesData = await getDocs(collection(db, "articles"))
     const podcastsData = await getDocs(collection(db, "podcasts"))
-    const registrationsData = await getDocs(collection(db, "registrations"))
     const statsSnap = await getDoc(doc(db, "stats", "main"))
 
     setArticles(
-      articlesData.docs.map((item) => ({
-        id: item.id,
-        ...item.data(),
-      }))
+      articlesData.docs
+        .map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }))
+        .sort((a, b) => {
+          const dateA = a.createdAt?.seconds || 0
+          const dateB = b.createdAt?.seconds || 0
+          return dateB - dateA
+        })
     )
 
     setPodcasts(
       podcastsData.docs.map((item) => ({
-        id: item.id,
-        ...item.data(),
-      }))
-    )
-
-    setRegistrations(
-      registrationsData.docs.map((item) => ({
         id: item.id,
         ...item.data(),
       }))
@@ -200,6 +201,10 @@ export default function AdminPage() {
     const articleData = {
       slug: createSlug(articleForm.title),
       ...articleForm,
+      createdAt: editingArticleId
+        ? articleForm.createdAt || serverTimestamp()
+        : serverTimestamp(),
+      updatedAt: serverTimestamp(),
       publishDate:
         articleForm.publishDate || new Date().toLocaleDateString("it-IT"),
       seoTitle: articleForm.seoTitle || articleForm.title,
@@ -224,6 +229,7 @@ export default function AdminPage() {
       publishDate: "",
       seoTitle: "",
       seoDescription: "",
+      createdAt: null,
     })
 
     loadDashboard()
@@ -245,6 +251,8 @@ export default function AdminPage() {
     const podcastData = {
       slug: createSlug(podcastForm.title),
       ...podcastForm,
+      createdAt: editingPodcastId ? podcastForm.createdAt || serverTimestamp() : serverTimestamp(),
+      updatedAt: serverTimestamp(),
       publishDate:
         podcastForm.publishDate || new Date().toLocaleDateString("it-IT"),
       seoTitle: podcastForm.seoTitle || podcastForm.title,
@@ -277,6 +285,7 @@ export default function AdminPage() {
 
   function editArticle(article) {
     setEditingArticleId(article.id)
+
     setArticleForm({
       title: article.title || "",
       category: article.category || "",
@@ -286,11 +295,13 @@ export default function AdminPage() {
       publishDate: article.publishDate || "",
       seoTitle: article.seoTitle || "",
       seoDescription: article.seoDescription || "",
+      createdAt: article.createdAt || null,
     })
   }
 
   function editPodcast(podcast) {
     setEditingPodcastId(podcast.id)
+
     setPodcastForm({
       title: podcast.title || "",
       category: podcast.category || "",
@@ -301,6 +312,7 @@ export default function AdminPage() {
       publishDate: podcast.publishDate || "",
       seoTitle: podcast.seoTitle || "",
       seoDescription: podcast.seoDescription || "",
+      createdAt: podcast.createdAt || null,
     })
   }
 
@@ -320,9 +332,9 @@ export default function AdminPage() {
     <main className="min-h-screen bg-black text-white">
       <Navbar />
 
-      <section className="pt-40 px-6 pb-28">
+      <section className="pt-32 md:pt-40 px-4 md:px-6 pb-28">
         <div className="max-w-7xl mx-auto">
-          <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
+          <p className="uppercase tracking-[0.35em] text-white/40 text-xs md:text-sm">
             Area riservata
           </p>
 
@@ -342,10 +354,7 @@ export default function AdminPage() {
                   placeholder="Email admin"
                   value={loginForm.email}
                   onChange={(e) =>
-                    setLoginForm({
-                      ...loginForm,
-                      email: e.target.value,
-                    })
+                    setLoginForm({ ...loginForm, email: e.target.value })
                   }
                   className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                 />
@@ -355,10 +364,7 @@ export default function AdminPage() {
                   placeholder="Password admin"
                   value={loginForm.password}
                   onChange={(e) =>
-                    setLoginForm({
-                      ...loginForm,
-                      password: e.target.value,
-                    })
+                    setLoginForm({ ...loginForm, password: e.target.value })
                   }
                   className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                 />
@@ -382,18 +388,11 @@ export default function AdminPage() {
             </div>
           ) : (
             <>
-              <div className="grid md:grid-cols-4 gap-6 mb-12">
+              <div className="grid md:grid-cols-3 gap-6 mb-12">
                 <div className="p-6 rounded-[2rem] bg-white text-black">
                   <p className="text-black/50 font-bold">Visualizzazioni</p>
                   <h3 className="text-4xl font-black mt-2">
                     {stats.views || 0}
-                  </h3>
-                </div>
-
-                <div className="p-6 rounded-[2rem] bg-white text-black">
-                  <p className="text-black/50 font-bold">Registrazioni</p>
-                  <h3 className="text-4xl font-black mt-2">
-                    {registrations.length}
                   </h3>
                 </div>
 
@@ -664,9 +663,7 @@ export default function AdminPage() {
                       onClick={savePodcast}
                       className="w-full px-8 py-4 rounded-full bg-black text-white font-black"
                     >
-                      {editingPodcastId
-                        ? "Salva podcast"
-                        : "Pubblica podcast"}
+                      {editingPodcastId ? "Salva podcast" : "Pubblica podcast"}
                     </button>
                   </div>
                 </div>
@@ -740,17 +737,6 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-              
-              <div className="space-y-3">
-                {registrations.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-4 rounded-2xl bg-white/5 border border-white/10 text-white/60"
-                  >
-                    {item.email}
-                  </div>
-                ))}
               </div>
             </>
           )}
