@@ -25,24 +25,41 @@ export default function Home() {
       const podcastsData = await getDocs(collection(db, "podcasts"))
 
       const loadedArticles = articlesData.docs
-        .map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-        .sort((a, b) => {
-          const dateA = a.createdAt?.seconds || 0
-          const dateB = b.createdAt?.seconds || 0
-          return dateB - dateA
-        })
+  .map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }))
+  .sort((a, b) => {
+    const aTime = a.createdAt?.seconds
+      ? Number(a.createdAt.seconds)
+      : 0
 
+    const bTime = b.createdAt?.seconds
+      ? Number(b.createdAt.seconds)
+      : 0
+
+    return bTime - aTime
+  })
       setArticles(loadedArticles)
 
       setPodcasts(
-        podcastsData.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-      )
+  podcastsData.docs
+    .map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+    .sort((a, b) => {
+      const aTime = a.createdAt?.seconds
+        ? Number(a.createdAt.seconds)
+        : 0
+
+      const bTime = b.createdAt?.seconds
+        ? Number(b.createdAt.seconds)
+        : 0
+
+      return bTime - aTime
+    })
+)
     }
 
     async function trackView() {
@@ -101,11 +118,11 @@ export default function Home() {
         <section className="px-4 md:px-6 py-16 md:py-20">
           <div className="max-w-7xl mx-auto">
             <p className="uppercase tracking-[0.35em] text-white/40 text-xs md:text-sm">
-              Ultimo pubblicato
+              In primo piano
             </p>
 
             <h2 className="text-4xl md:text-7xl font-black mt-4 mb-10">
-              In evidenza
+              La storia principale
             </h2>
 
             {featuredArticle ? (
