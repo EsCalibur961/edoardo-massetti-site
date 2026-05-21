@@ -275,7 +275,7 @@ export default function AdminPage() {
       } else {
   await addDoc(collection(db, "articles"), articleData)
 
-  await fetch("/api/send-notification", {
+  const notificationResponse = await fetch("/api/send-notification", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -287,7 +287,15 @@ export default function AdminPage() {
     }),
   })
 
-  setMessage("Articolo pubblicato.")
+  const notificationResult = await notificationResponse.json()
+
+  console.log("RISPOSTA NOTIFICA:", notificationResult)
+
+  setMessage(
+    `Articolo pubblicato. Notifiche inviate: ${
+      notificationResult.sent || 0
+    }, fallite: ${notificationResult.failed || 0}`
+  )
 }
 
       setArticleForm({
