@@ -273,9 +273,22 @@ export default function AdminPage() {
         setEditingArticleId(null)
         setMessage("Articolo modificato.")
       } else {
-        await addDoc(collection(db, "articles"), articleData)
-        setMessage("Articolo pubblicato.")
-      }
+  await addDoc(collection(db, "articles"), articleData)
+
+  await fetch("/api/send-notification", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      title: "Nuovo articolo su FattiDiretti",
+      body: articleForm.title,
+      link: `/article/${articleData.slug}`,
+    }),
+  })
+
+  setMessage("Articolo pubblicato.")
+}
 
       setArticleForm({
         title: "",
