@@ -7,6 +7,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  setDoc,
   serverTimestamp,
 } from "firebase/firestore"
 import {
@@ -17,11 +18,7 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from "firebase/auth"
-import {
-  ref,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage"
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import ReactQuill from "react-quill-new"
 import "react-quill-new/dist/quill.snow.css"
 
@@ -36,6 +33,12 @@ export default function AdminPage() {
   const [podcasts, setPodcasts] = useState([])
   const [stats, setStats] = useState({ views: 0 })
   const [registrationsCount, setRegistrationsCount] = useState(0)
+
+  const [breakingNews, setBreakingNews] = useState({
+    active: false,
+    text: "",
+    link: "",
+  })
 
   const [editingArticleId, setEditingArticleId] = useState(null)
   const [editingPodcastId, setEditingPodcastId] = useState(null)
@@ -97,10 +100,7 @@ export default function AdminPage() {
     if (!file) return ""
 
     const safeName = file.name.replaceAll(" ", "-")
-    const fileRef = ref(
-      storage,
-      `${folder}/${Date.now()}-${safeName}`
-    )
+    const fileRef = ref(storage, `${folder}/${Date.now()}-${safeName}`)
 
     await uploadBytes(fileRef, file)
     return await getDownloadURL(fileRef)
@@ -111,6 +111,7 @@ export default function AdminPage() {
     const podcastsData = await getDocs(collection(db, "podcasts"))
     const registrationsData = await getDocs(collection(db, "registrations"))
     const statsSnap = await getDoc(doc(db, "stats", "main"))
+    const breakingSnap = await getDoc(doc(db, "settings", "breakingNews"))
 
     setArticles(
       articlesData.docs
@@ -142,6 +143,10 @@ export default function AdminPage() {
 
     if (statsSnap.exists()) {
       setStats(statsSnap.data())
+    }
+
+    if (breakingSnap.exists()) {
+      setBreakingNews(breakingSnap.data())
     }
   }
 
@@ -217,6 +222,17 @@ export default function AdminPage() {
     } catch {
       setMessage("Errore: password attuale non corretta o sessione scaduta.")
     }
+  }
+
+  async function saveBreakingNews() {
+    if (!isAdmin) return
+
+    await setDoc(doc(db, "settings", "breakingNews"), {
+      ...breakingNews,
+      updatedAt: serverTimestamp(),
+    })
+
+    setMessage("Breaking News aggiornata.")
   }
 
   async function saveArticle() {
@@ -488,6 +504,59 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              <div className="mb-12 p-8 rounded-[2rem] bg-red-600 text-white">
+                <h2 className="text-3xl font-black mb-6">Breaking News</h2>
+
+                <div className="space-y-4">
+                  <label className="flex items-center gap-3 font-bold">
+                    <input
+                      type="checkbox"
+                      checked={breakingNews.active}
+                      onChange={() =>
+                        setBreakingNews({
+                          ...breakingNews,
+                          active: !breakingNews.active,
+                        })
+                      }
+                    />
+                    Attiva Breaking News in homepage
+                  </label>
+
+                  <input
+                    type="text"
+                    placeholder="Testo Breaking News"
+                    value={breakingNews.text}
+                    onChange={(e) =>
+                      setBreakingNews({
+                        ...breakingNews,
+                        text: e.target.value,
+                      })
+                    }
+                    className="w-full px-5 py-4 rounded-2xl bg-white text-black outline-none"
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Link opzionale, esempio: /article/titolo"
+                    value={breakingNews.link}
+                    onChange={(e) =>
+                      setBreakingNews({
+                        ...breakingNews,
+                        link: e.target.value,
+                      })
+                    }
+                    className="w-full px-5 py-4 rounded-2xl bg-white text-black outline-none"
+                  />
+
+                  <button
+                    onClick={saveBreakingNews}
+                    className="w-full px-8 py-4 rounded-full bg-black text-white font-black"
+                  >
+                    Salva Breaking News
+                  </button>
+                </div>
+              </div>
+
               <button
                 onClick={logoutAdmin}
                 className="mb-10 px-6 py-3 rounded-full border border-white/20 hover:bg-white/10"
@@ -581,21 +650,20 @@ export default function AdminPage() {
                     />
 
                     <div className="border border-black/10 rounded-2xl p-5 bg-black/5">
-  <p className="font-black mb-2">
-    Copertina articolo
-  </p>
+                      <p className="font-black mb-2">Copertina articolo</p>
+                      <p className="text-sm text-black/50 mb-4">
+                        Seleziona un'immagine JPG, PNG o WEBP dal dispositivo.
+                      </p>
 
-  <p className="text-sm text-black/50 mb-4">
-    Seleziona un'immagine JPG, PNG o WEBP dal dispositivo.
-  </p>
-
-  <input
-    type="file"
-    accept="image/png,image/jpeg,image/webp"
-    onChange={(e) => setArticleCoverFile(e.target.files[0])}
-    className="w-full"
-  />
-</div>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(e) =>
+                          setArticleCoverFile(e.target.files[0])
+                        }
+                        className="w-full"
+                      />
+                    </div>
 
                     {articleForm.coverImage && (
                       <img
@@ -699,38 +767,36 @@ export default function AdminPage() {
                     />
 
                     <div className="border border-black/10 rounded-2xl p-5 bg-black/5">
-  <p className="font-black mb-2">
-    Copertina podcast
-  </p>
+                      <p className="font-black mb-2">Copertina podcast</p>
+                      <p className="text-sm text-black/50 mb-4">
+                        Seleziona un'immagine JPG, PNG o WEBP dal dispositivo.
+                      </p>
 
-  <p className="text-sm text-black/50 mb-4">
-    Seleziona un'immagine JPG, PNG o WEBP dal dispositivo.
-  </p>
-
-  <input
-    type="file"
-    accept="image/png,image/jpeg,image/webp"
-    onChange={(e) => setPodcastCoverFile(e.target.files[0])}
-    className="w-full"
-  />
-</div>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(e) =>
+                          setPodcastCoverFile(e.target.files[0])
+                        }
+                        className="w-full"
+                      />
+                    </div>
 
                     <div className="border border-black/10 rounded-2xl p-5 bg-black/5">
-  <p className="font-black mb-2">
-    Video podcast
-  </p>
+                      <p className="font-black mb-2">Video podcast</p>
+                      <p className="text-sm text-black/50 mb-4">
+                        Seleziona un video MP4 o MOV dal dispositivo.
+                      </p>
 
-  <p className="text-sm text-black/50 mb-4">
-    Seleziona un video MP4 o MOV dal dispositivo.
-  </p>
-
-  <input
-    type="file"
-    accept="video/mp4,video/quicktime"
-    onChange={(e) => setPodcastVideoFile(e.target.files[0])}
-    className="w-full"
-  />
-</div>
+                      <input
+                        type="file"
+                        accept="video/mp4,video/quicktime"
+                        onChange={(e) =>
+                          setPodcastVideoFile(e.target.files[0])
+                        }
+                        className="w-full"
+                      />
+                    </div>
 
                     {podcastForm.coverImage && (
                       <img
