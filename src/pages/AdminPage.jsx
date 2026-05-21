@@ -580,12 +580,22 @@ export default function AdminPage() {
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                     />
 
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setArticleCoverFile(e.target.files[0])}
-                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                    />
+                    <div className="border border-black/10 rounded-2xl p-5 bg-black/5">
+  <p className="font-black mb-2">
+    Copertina articolo
+  </p>
+
+  <p className="text-sm text-black/50 mb-4">
+    Seleziona un'immagine JPG, PNG o WEBP dal dispositivo.
+  </p>
+
+  <input
+    type="file"
+    accept="image/png,image/jpeg,image/webp"
+    onChange={(e) => setArticleCoverFile(e.target.files[0])}
+    className="w-full"
+  />
+</div>
 
                     {articleForm.coverImage && (
                       <img
@@ -688,19 +698,39 @@ export default function AdminPage() {
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                     />
 
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setPodcastCoverFile(e.target.files[0])}
-                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                    />
+                    <div className="border border-black/10 rounded-2xl p-5 bg-black/5">
+  <p className="font-black mb-2">
+    Copertina podcast
+  </p>
 
-                    <input
-                      type="file"
-                      accept="video/*"
-                      onChange={(e) => setPodcastVideoFile(e.target.files[0])}
-                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
-                    />
+  <p className="text-sm text-black/50 mb-4">
+    Seleziona un'immagine JPG, PNG o WEBP dal dispositivo.
+  </p>
+
+  <input
+    type="file"
+    accept="image/png,image/jpeg,image/webp"
+    onChange={(e) => setPodcastCoverFile(e.target.files[0])}
+    className="w-full"
+  />
+</div>
+
+                    <div className="border border-black/10 rounded-2xl p-5 bg-black/5">
+  <p className="font-black mb-2">
+    Video podcast
+  </p>
+
+  <p className="text-sm text-black/50 mb-4">
+    Seleziona un video MP4 o MOV dal dispositivo.
+  </p>
+
+  <input
+    type="file"
+    accept="video/mp4,video/quicktime"
+    onChange={(e) => setPodcastVideoFile(e.target.files[0])}
+    className="w-full"
+  />
+</div>
 
                     {podcastForm.coverImage && (
                       <img
