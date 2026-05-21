@@ -3,14 +3,13 @@ import {
   collection,
   getDocs,
   doc,
+  getDoc,
   setDoc,
   increment,
   serverTimestamp,
 } from "firebase/firestore"
-
 import { Helmet } from "react-helmet-async"
 import { Link } from "react-router-dom"
-
 import { db } from "../firebase"
 
 import Navbar from "../components/Navbar"
@@ -20,6 +19,11 @@ import ArticleCard from "../components/ArticleCard"
 export default function Home() {
   const [articles, setArticles] = useState([])
   const [podcasts, setPodcasts] = useState([])
+  const [breakingNews, setBreakingNews] = useState({
+    active: false,
+    text: "",
+    link: "",
+  })
 
   function getTimestamp(item) {
     if (item.publishDate) {
@@ -34,38 +38,35 @@ export default function Home() {
       }
     }
 
-    return (
-      item.createdAt?.seconds * 1000 ||
-      item.updatedAt?.seconds * 1000 ||
-      0
-    )
+    return item.createdAt?.seconds * 1000 || item.updatedAt?.seconds * 1000 || 0
   }
 
   useEffect(() => {
     async function loadData() {
       const articlesData = await getDocs(collection(db, "articles"))
       const podcastsData = await getDocs(collection(db, "podcasts"))
+      const breakingSnap = await getDoc(doc(db, "settings", "breakingNews"))
 
       const loadedArticles = articlesData.docs
         .map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }))
-        .sort((a, b) => {
-          return getTimestamp(b) - getTimestamp(a)
-        })
+        .sort((a, b) => getTimestamp(b) - getTimestamp(a))
 
       const loadedPodcasts = podcastsData.docs
         .map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }))
-        .sort((a, b) => {
-          return getTimestamp(b) - getTimestamp(a)
-        })
+        .sort((a, b) => getTimestamp(b) - getTimestamp(a))
 
       setArticles(loadedArticles)
       setPodcasts(loadedPodcasts)
+
+      if (breakingSnap.exists()) {
+        setBreakingNews(breakingSnap.data())
+      }
     }
 
     async function trackView() {
@@ -104,7 +105,24 @@ export default function Home() {
       <main className="min-h-screen bg-[#080808] text-white">
         <Navbar />
 
-        <section className="pt-32 md:pt-36 px-4 md:px-6 pb-16 md:pb-20 border-b border-white/10">
+        {breakingNews.active && breakingNews.text && (
+          <section className="pt-24 md:pt-28 px-4 md:px-6">
+            <div className="max-w-7xl mx-auto">
+              <Link
+                to={breakingNews.link || "/"}
+                className="block rounded-full bg-red-600 text-white px-6 py-4 font-black overflow-hidden"
+              >
+                <span className="uppercase tracking-[0.25em] mr-4">
+                  Breaking News
+                </span>
+
+                <span>{breakingNews.text}</span>
+              </Link>
+            </div>
+          </section>
+        )}
+
+        <section className="pt-20 md:pt-24 px-4 md:px-6 pb-16 md:pb-20 border-b border-white/10">
           <div className="max-w-7xl mx-auto">
             <p className="uppercase tracking-[0.35em] md:tracking-[0.45em] text-white/40 text-xs md:text-sm mb-8">
               Giornalismo • Podcast • Reportage
@@ -112,9 +130,7 @@ export default function Home() {
 
             <h1 className="text-6xl md:text-9xl font-black leading-[0.85] mb-8">
               FATTI
-              <span className="block text-white/35">
-                DIRETTI
-              </span>
+              <span className="block text-white/35">DIRETTI</span>
             </h1>
 
             <p className="text-lg md:text-2xl text-white/60 max-w-3xl leading-relaxed">
@@ -205,9 +221,7 @@ export default function Home() {
                       {article.title}
                     </h3>
 
-                    <p className="text-white/50">
-                      {article.description}
-                    </p>
+                    <p className="text-white/50">{article.description}</p>
                   </Link>
                 ))}
               </div>
@@ -238,10 +252,7 @@ export default function Home() {
 
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
               {articles.slice(0, 6).map((article) => (
-                <ArticleCard
-                  key={article.id}
-                  article={article}
-                />
+                <ArticleCard key={article.id} article={article} />
               ))}
             </div>
           </div>
@@ -297,9 +308,7 @@ export default function Home() {
                         {podcast.title}
                       </h3>
 
-                      <p className="text-white/50">
-                        {podcast.description}
-                      </p>
+                      <p className="text-white/50">{podcast.description}</p>
                     </div>
                   </Link>
                 ))}
