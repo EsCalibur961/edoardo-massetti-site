@@ -2,8 +2,8 @@ import { useEffect, useState } from "react"
 import { collection, getDocs } from "firebase/firestore"
 import { Helmet } from "react-helmet-async"
 import { Link } from "react-router-dom"
-import { db } from "../firebase"
 
+import { db } from "../firebase"
 import Navbar from "../components/Navbar"
 import Footer from "../components/Footer"
 import ArticleCard from "../components/ArticleCard"
@@ -39,6 +39,8 @@ export default function SearchPage() {
   const cleanQuery = query.toLowerCase().trim()
 
   const filteredArticles = articles.filter((article) => {
+    if (!cleanQuery) return true
+
     return (
       article.title?.toLowerCase().includes(cleanQuery) ||
       article.category?.toLowerCase().includes(cleanQuery) ||
@@ -47,6 +49,8 @@ export default function SearchPage() {
   })
 
   const filteredPodcasts = podcasts.filter((podcast) => {
+    if (!cleanQuery) return true
+
     return (
       podcast.title?.toLowerCase().includes(cleanQuery) ||
       podcast.category?.toLowerCase().includes(cleanQuery) ||
@@ -67,13 +71,13 @@ export default function SearchPage() {
       <main className="min-h-screen bg-[#080808] text-white">
         <Navbar />
 
-        <section className="pt-36 px-6 pb-20 border-b border-white/10">
+        <section className="pt-32 md:pt-40 px-4 md:px-6 pb-20 border-b border-white/10">
           <div className="max-w-7xl mx-auto">
-            <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
+            <p className="uppercase tracking-[0.35em] text-white/40 text-xs md:text-sm">
               Cerca contenuti
             </p>
 
-            <h1 className="text-6xl md:text-8xl font-black mt-4 mb-10">
+            <h1 className="text-5xl md:text-8xl font-black mt-4 mb-10">
               Ricerca
             </h1>
 
@@ -87,9 +91,9 @@ export default function SearchPage() {
           </div>
         </section>
 
-        <section className="px-6 py-24 bg-white text-black">
+        <section className="px-4 md:px-6 py-20 md:py-24 bg-white text-black">
           <div className="max-w-7xl mx-auto">
-            <h2 className="text-5xl font-black mb-10">
+            <h2 className="text-4xl md:text-6xl font-black mb-10">
               Articoli
             </h2>
 
@@ -107,9 +111,9 @@ export default function SearchPage() {
           </div>
         </section>
 
-        <section className="px-6 py-24 bg-[#080808] text-white">
+        <section className="px-4 md:px-6 py-20 md:py-24 bg-[#080808] text-white">
           <div className="max-w-7xl mx-auto">
-            <h2 className="text-5xl font-black mb-10">
+            <h2 className="text-4xl md:text-6xl font-black mb-10">
               Podcast
             </h2>
 
