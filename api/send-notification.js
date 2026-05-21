@@ -1,37 +1,39 @@
 import admin from "firebase-admin"
 
-function formatPrivateKey(key) {
-  return key?.replace(/\\n/g, "\n")
-}
+function getAdminApp() {
+  if (admin.apps.length) {
+    return admin.app()
+  }
 
-if (!admin.apps.length) {
-  admin.initializeApp({
+  const projectId = process.env.FIREBASE_PROJECT_ID
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n")
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error("Variabili Firebase mancanti su Vercel")
+  }
+
+  return admin.initializeApp({
     credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: formatPrivateKey(process.env.FIREBASE_PRIVATE_KEY),
+      projectId,
+      clientEmail,
+      privateKey,
     }),
   })
 }
 
-const db = admin.firestore()
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Metodo non consentito" })
+    return res.status(405).json({
+      success: false,
+      error: "Metodo non consentito",
+    })
   }
 
   try {
-    if (
-      !process.env.FIREBASE_PROJECT_ID ||
-      !process.env.FIREBASE_CLIENT_EMAIL ||
-      !process.env.FIREBASE_PRIVATE_KEY
-    ) {
-      return res.status(500).json({
-        success: false,
-        error: "Variabili Firebase mancanti su Vercel",
-      })
-    }
+    getAdminApp()
+
+    const db = admin.firestore()
 
     const { title, body, link } = req.body
 
@@ -51,8 +53,8 @@ export default async function handler(req, res) {
     const response = await admin.messaging().sendEachForMulticast({
       tokens,
       notification: {
-        title,
-        body,
+        title: title || "FattiDiretti",
+        body: body || "Nuovo contenuto disponibile",
       },
       webpush: {
         notification: {
@@ -72,6 +74,8 @@ export default async function handler(req, res) {
       failed: response.failureCount,
     })
   } catch (error) {
+    console.error("ERRORE API NOTIFICHE:", error)
+
     return res.status(500).json({
       success: false,
       error: error.message,
