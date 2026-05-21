@@ -17,10 +17,15 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from "firebase/auth"
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+} from "firebase/storage"
 import ReactQuill from "react-quill-new"
 import "react-quill-new/dist/quill.snow.css"
 
-import { db, auth } from "../firebase"
+import { db, auth, storage } from "../firebase"
 import Navbar from "../components/Navbar"
 
 export default function AdminPage() {
@@ -34,6 +39,10 @@ export default function AdminPage() {
 
   const [editingArticleId, setEditingArticleId] = useState(null)
   const [editingPodcastId, setEditingPodcastId] = useState(null)
+
+  const [articleCoverFile, setArticleCoverFile] = useState(null)
+  const [podcastCoverFile, setPodcastCoverFile] = useState(null)
+  const [podcastVideoFile, setPodcastVideoFile] = useState(null)
 
   const [message, setMessage] = useState("")
   const [showLoginPassword, setShowLoginPassword] = useState(false)
@@ -82,6 +91,19 @@ export default function AdminPage() {
       .trim()
       .replace(/[^a-z0-9\s-]/g, "")
       .replace(/\s+/g, "-")
+  }
+
+  async function uploadFile(file, folder) {
+    if (!file) return ""
+
+    const safeName = file.name.replaceAll(" ", "-")
+    const fileRef = ref(
+      storage,
+      `${folder}/${Date.now()}-${safeName}`
+    )
+
+    await uploadBytes(fileRef, file)
+    return await getDownloadURL(fileRef)
   }
 
   async function loadDashboard() {
@@ -209,41 +231,53 @@ export default function AdminPage() {
       return
     }
 
-    const articleData = {
-      slug: createSlug(articleForm.title),
-      ...articleForm,
-      createdAt: editingArticleId
-        ? articleForm.createdAt || serverTimestamp()
-        : serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      publishDate:
-        articleForm.publishDate || new Date().toLocaleDateString("it-IT"),
-      seoTitle: articleForm.seoTitle || articleForm.title,
-      seoDescription: articleForm.seoDescription || articleForm.description,
+    try {
+      setMessage("Salvataggio articolo in corso...")
+
+      const uploadedCoverUrl = articleCoverFile
+        ? await uploadFile(articleCoverFile, "articles/covers")
+        : articleForm.coverImage
+
+      const articleData = {
+        slug: createSlug(articleForm.title),
+        ...articleForm,
+        coverImage: uploadedCoverUrl,
+        createdAt: editingArticleId
+          ? articleForm.createdAt || serverTimestamp()
+          : serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        publishDate:
+          articleForm.publishDate || new Date().toLocaleDateString("it-IT"),
+        seoTitle: articleForm.seoTitle || articleForm.title,
+        seoDescription: articleForm.seoDescription || articleForm.description,
+      }
+
+      if (editingArticleId) {
+        await updateDoc(doc(db, "articles", editingArticleId), articleData)
+        setEditingArticleId(null)
+        setMessage("Articolo modificato.")
+      } else {
+        await addDoc(collection(db, "articles"), articleData)
+        setMessage("Articolo pubblicato.")
+      }
+
+      setArticleForm({
+        title: "",
+        category: "",
+        description: "",
+        content: "",
+        coverImage: "",
+        publishDate: "",
+        seoTitle: "",
+        seoDescription: "",
+        createdAt: null,
+      })
+
+      setArticleCoverFile(null)
+      loadDashboard()
+    } catch (error) {
+      setMessage("Errore articolo: " + error.message)
     }
-
-    if (editingArticleId) {
-      await updateDoc(doc(db, "articles", editingArticleId), articleData)
-      setEditingArticleId(null)
-      setMessage("Articolo modificato.")
-    } else {
-      await addDoc(collection(db, "articles"), articleData)
-      setMessage("Articolo pubblicato.")
-    }
-
-    setArticleForm({
-      title: "",
-      category: "",
-      description: "",
-      content: "",
-      coverImage: "",
-      publishDate: "",
-      seoTitle: "",
-      seoDescription: "",
-      createdAt: null,
-    })
-
-    loadDashboard()
   }
 
   async function savePodcast() {
@@ -252,49 +286,71 @@ export default function AdminPage() {
     if (
       !podcastForm.title ||
       !podcastForm.category ||
-      !podcastForm.description ||
-      !podcastForm.videoUrl
+      !podcastForm.description
     ) {
-      setMessage("Compila titolo, categoria, descrizione e URL video podcast.")
+      setMessage("Compila titolo, categoria e descrizione podcast.")
       return
     }
 
-    const podcastData = {
-      slug: createSlug(podcastForm.title),
-      ...podcastForm,
-      createdAt: editingPodcastId
-        ? podcastForm.createdAt || serverTimestamp()
-        : serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      publishDate:
-        podcastForm.publishDate || new Date().toLocaleDateString("it-IT"),
-      seoTitle: podcastForm.seoTitle || podcastForm.title,
-      seoDescription: podcastForm.seoDescription || podcastForm.description,
+    try {
+      setMessage("Salvataggio podcast in corso...")
+
+      const uploadedCoverUrl = podcastCoverFile
+        ? await uploadFile(podcastCoverFile, "podcasts/covers")
+        : podcastForm.coverImage
+
+      const uploadedVideoUrl = podcastVideoFile
+        ? await uploadFile(podcastVideoFile, "podcasts/videos")
+        : podcastForm.videoUrl
+
+      if (!uploadedVideoUrl) {
+        setMessage("Carica un video podcast oppure inserisci un URL video.")
+        return
+      }
+
+      const podcastData = {
+        slug: createSlug(podcastForm.title),
+        ...podcastForm,
+        coverImage: uploadedCoverUrl,
+        videoUrl: uploadedVideoUrl,
+        createdAt: editingPodcastId
+          ? podcastForm.createdAt || serverTimestamp()
+          : serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        publishDate:
+          podcastForm.publishDate || new Date().toLocaleDateString("it-IT"),
+        seoTitle: podcastForm.seoTitle || podcastForm.title,
+        seoDescription: podcastForm.seoDescription || podcastForm.description,
+      }
+
+      if (editingPodcastId) {
+        await updateDoc(doc(db, "podcasts", editingPodcastId), podcastData)
+        setEditingPodcastId(null)
+        setMessage("Podcast modificato.")
+      } else {
+        await addDoc(collection(db, "podcasts"), podcastData)
+        setMessage("Podcast pubblicato.")
+      }
+
+      setPodcastForm({
+        title: "",
+        category: "",
+        description: "",
+        content: "",
+        coverImage: "",
+        videoUrl: "",
+        publishDate: "",
+        seoTitle: "",
+        seoDescription: "",
+        createdAt: null,
+      })
+
+      setPodcastCoverFile(null)
+      setPodcastVideoFile(null)
+      loadDashboard()
+    } catch (error) {
+      setMessage("Errore podcast: " + error.message)
     }
-
-    if (editingPodcastId) {
-      await updateDoc(doc(db, "podcasts", editingPodcastId), podcastData)
-      setEditingPodcastId(null)
-      setMessage("Podcast modificato.")
-    } else {
-      await addDoc(collection(db, "podcasts"), podcastData)
-      setMessage("Podcast pubblicato.")
-    }
-
-    setPodcastForm({
-      title: "",
-      category: "",
-      description: "",
-      content: "",
-      coverImage: "",
-      videoUrl: "",
-      publishDate: "",
-      seoTitle: "",
-      seoDescription: "",
-      createdAt: null,
-    })
-
-    loadDashboard()
   }
 
   function editArticle(article) {
@@ -525,17 +581,19 @@ export default function AdminPage() {
                     />
 
                     <input
-                      type="text"
-                      placeholder="URL immagine copertina"
-                      value={articleForm.coverImage}
-                      onChange={(e) =>
-                        setArticleForm({
-                          ...articleForm,
-                          coverImage: e.target.value,
-                        })
-                      }
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setArticleCoverFile(e.target.files[0])}
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                     />
+
+                    {articleForm.coverImage && (
+                      <img
+                        src={articleForm.coverImage}
+                        alt="Copertina articolo"
+                        className="w-full h-48 object-cover rounded-2xl"
+                      />
+                    )}
 
                     <textarea
                       rows="3"
@@ -631,30 +689,26 @@ export default function AdminPage() {
                     />
 
                     <input
-                      type="text"
-                      placeholder="URL immagine copertina"
-                      value={podcastForm.coverImage}
-                      onChange={(e) =>
-                        setPodcastForm({
-                          ...podcastForm,
-                          coverImage: e.target.value,
-                        })
-                      }
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setPodcastCoverFile(e.target.files[0])}
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                     />
 
                     <input
-                      type="text"
-                      placeholder="URL video embed YouTube"
-                      value={podcastForm.videoUrl}
-                      onChange={(e) =>
-                        setPodcastForm({
-                          ...podcastForm,
-                          videoUrl: e.target.value,
-                        })
-                      }
+                      type="file"
+                      accept="video/*"
+                      onChange={(e) => setPodcastVideoFile(e.target.files[0])}
                       className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
                     />
+
+                    {podcastForm.coverImage && (
+                      <img
+                        src={podcastForm.coverImage}
+                        alt="Copertina podcast"
+                        className="w-full h-48 object-cover rounded-2xl"
+                      />
+                    )}
 
                     <textarea
                       rows="3"
