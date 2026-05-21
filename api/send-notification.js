@@ -11,6 +11,12 @@ function getAdminApp() {
   process.env.FIREBASE_PRIVATE_KEY_BASE64,
   "base64"
 ).toString("utf8")
+
+console.log({
+  projectIdExists: !!projectId,
+  clientEmailExists: !!clientEmail,
+  privateKeyExists: !!privateKey,
+})
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error("Variabili Firebase mancanti su Vercel")
   }
