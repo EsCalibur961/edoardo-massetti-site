@@ -14,37 +14,48 @@ const db = admin.firestore()
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Metodo non consentito" })
+    return res.status(405).json({
+      error: "Metodo non consentito",
+    })
   }
 
   try {
     const { title, body, link } = req.body
 
-    const snapshot = await db.collection("notificationTokens").get()
+    const snapshot = await db
+      .collection("notificationTokens")
+      .get()
 
     const tokens = snapshot.docs
       .map((doc) => doc.data().token)
       .filter(Boolean)
 
     if (tokens.length === 0) {
-      return res.status(200).json({ success: false, message: "Nessun token" })
+      return res.status(200).json({
+        success: false,
+        message: "Nessun token trovato",
+      })
     }
 
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens,
-      notification: {
-        title,
-        body,
-      },
-      webpush: {
+    const response =
+      await admin.messaging().sendEachForMulticast({
+        tokens,
+
         notification: {
-          icon: "/favicon.png",
+          title,
+          body,
         },
-        fcmOptions: {
-          link: link || "/",
+
+        webpush: {
+          notification: {
+            icon: "/favicon.png",
+          },
+
+          fcmOptions: {
+            link: link || "/",
+          },
         },
-      },
-    })
+      })
 
     return res.status(200).json({
       success: true,
