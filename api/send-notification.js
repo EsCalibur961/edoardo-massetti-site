@@ -1,11 +1,15 @@
 import admin from "firebase-admin"
 
+function formatPrivateKey(key) {
+  return key?.replace(/\\n/g, "\n")
+}
+
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      privateKey: formatPrivateKey(process.env.FIREBASE_PRIVATE_KEY),
     }),
   })
 }
@@ -14,17 +18,24 @@ const db = admin.firestore()
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({
-      error: "Metodo non consentito",
-    })
+    return res.status(405).json({ error: "Metodo non consentito" })
   }
 
   try {
+    if (
+      !process.env.FIREBASE_PROJECT_ID ||
+      !process.env.FIREBASE_CLIENT_EMAIL ||
+      !process.env.FIREBASE_PRIVATE_KEY
+    ) {
+      return res.status(500).json({
+        success: false,
+        error: "Variabili Firebase mancanti su Vercel",
+      })
+    }
+
     const { title, body, link } = req.body
 
-    const snapshot = await db
-      .collection("notificationTokens")
-      .get()
+    const snapshot = await db.collection("notificationTokens").get()
 
     const tokens = snapshot.docs
       .map((doc) => doc.data().token)
@@ -37,25 +48,23 @@ export default async function handler(req, res) {
       })
     }
 
-    const response =
-      await admin.messaging().sendEachForMulticast({
-        tokens,
-
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: {
+        title,
+        body,
+      },
+      webpush: {
         notification: {
-          title,
-          body,
+          icon: "https://www.fattidiretti.com/favicon.png",
         },
-
-        webpush: {
-          notification: {
-            icon: "/favicon.png",
-          },
-
-          fcmOptions: {
-            link: link || "/",
-          },
+        fcmOptions: {
+          link: link
+            ? `https://www.fattidiretti.com${link}`
+            : "https://www.fattidiretti.com",
         },
-      })
+      },
+    })
 
     return res.status(200).json({
       success: true,
