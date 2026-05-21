@@ -1,3 +1,5 @@
+import { getToken } from "firebase/messaging"
+import { messaging } from "../firebase"
 import { useEffect, useState } from "react"
 import {
   onAuthStateChanged,
@@ -20,6 +22,37 @@ import { auth, db, storage } from "../firebase"
 import Navbar from "../components/Navbar"
 
 export default function ProfilePage() {
+  async function activateNotifications() {
+  try {
+    if (!user) return
+
+    const permission = await Notification.requestPermission()
+
+    if (permission !== "granted") {
+      setMessage("Notifiche non autorizzate.")
+      return
+    }
+
+    const token = await getToken(messaging, {
+      vapidKey: "BKRSDzoif6Vw2684XBzQrySTq1SNuWXV8PX_V7GZBO_DjArwDkE0hJ7BCmE2MWy4A0CWG_NLsYPPOWpxDVc2zQg",
+    })
+
+    await setDoc(
+      doc(db, "notificationTokens", user.uid),
+      {
+        userId: user.uid,
+        email: user.email,
+        token,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    )
+
+    setMessage("Notifiche attivate correttamente.")
+  } catch (error) {
+    setMessage("Errore notifiche: " + error.message)
+  }
+}
   const navigate = useNavigate()
   const ADMIN_EMAIL = "massetti.edoardo@libero.it"
 
@@ -315,6 +348,12 @@ export default function ProfilePage() {
                 >
                   {editOpen ? "Chiudi modifica" : "Modifica profilo"}
                 </button>
+                <button
+  onClick={activateNotifications}
+  className="w-full px-6 py-4 rounded-full bg-black text-white font-black"
+>
+  Attiva notifiche
+</button>
 
                 <button
                   onClick={logoutUser}
