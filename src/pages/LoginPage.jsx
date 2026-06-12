@@ -6,7 +6,8 @@ import {
   GoogleAuthProvider,
 } from "firebase/auth"
 import { useNavigate } from "react-router-dom"
-import { auth } from "../firebase"
+import { auth, db } from "../firebase"
+import { doc, getDoc } from "firebase/firestore"
 import Navbar from "../components/Navbar"
 
 export default function LoginPage() {
@@ -26,7 +27,14 @@ export default function LoginPage() {
       )
 
       const currentUser = userCredential.user
-      const isAdmin = currentUser.email === ADMIN_EMAIL
+      let isAdmin = currentUser.email === ADMIN_EMAIL
+
+      try {
+        const userSnap = await getDoc(doc(db, "users", currentUser.uid))
+        isAdmin = isAdmin || userSnap.data()?.role === "admin"
+      } catch {
+        // Se il profilo utente non è leggibile, resta valido il controllo email admin.
+      }
 
       if (!currentUser.emailVerified && !isAdmin) {
         await signOut(auth)

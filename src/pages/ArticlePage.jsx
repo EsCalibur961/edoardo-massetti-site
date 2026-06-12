@@ -19,21 +19,36 @@ import Navbar from "../components/Navbar"
 export default function ArticlePage() {
   const { slug } = useParams()
   const [article, setArticle] = useState(null)
+  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null)
   const [comments, setComments] = useState([])
   const [commentText, setCommentText] = useState("")
+  const [relatedArticles, setRelatedArticles] = useState([]);
+  const [readProgress, setReadProgress] = useState(0);
 
   useEffect(() => {
     async function loadArticle() {
       const data = await getDocs(collection(db, "articles"))
-      const found = data.docs.find((item) => item.data().slug === slug)
+      const found = data.docs.find((item) => {
+  const articleData = item.data();
 
-      if (found) {
-        setArticle({
-          id: found.id,
-          ...found.data(),
-        })
-      }
+  return (
+    articleData.slug === slug ||
+    item.id === slug
+  );
+});
+
+if (found) {
+  setArticle({
+    id: found.id,
+    ...found.data(),
+  });
+} else {
+  console.log("ARTICOLO NON TROVATO");
+}
+console.log(slug)
+console.log(found)
+      setLoading(false);
     }
 
     loadArticle()
@@ -44,6 +59,34 @@ export default function ArticlePage() {
 
     return () => unsubscribe()
   }, [slug])
+
+    const currentUrl = window.location.href;
+
+const shareOnWhatsApp = () => {
+  window.open(`https://wa.me/?text=${encodeURIComponent(currentUrl)}`, "_blank");
+};
+
+const copyLink = async () => {
+  await navigator.clipboard.writeText(currentUrl);
+  alert("Link copiato!");
+};
+
+useEffect(() => {
+  function updateReadProgress() {
+    const scrollTop = window.scrollY
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight
+
+    if (docHeight <= 0) return
+
+    const progress = (scrollTop / docHeight) * 100
+    setReadProgress(progress)
+  }
+
+  updateReadProgress()
+  window.addEventListener("scroll", updateReadProgress)
+
+  return () => window.removeEventListener("scroll", updateReadProgress)
+}, [])
 
   useEffect(() => {
     async function loadComments() {
@@ -110,17 +153,45 @@ export default function ArticlePage() {
       }))
     )
   }
+  if (loading) {
+  if (loading) {
+  return (
+    <main className="min-h-screen bg-black text-white">
+      <Navbar />
 
-  if (!article) {
-    return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center px-4">
-        Articolo non trovato...
-      </main>
-    )
-  }
+      <section className="pt-28 px-4 md:px-6 pb-24">
+        <div className="max-w-5xl mx-auto animate-pulse">
+          <div className="h-4 w-32 bg-white/10 rounded mb-6"></div>
+          <div className="h-14 w-3/4 bg-white/10 rounded mb-6"></div>
+          <div className="h-[360px] w-full bg-white/10 rounded-3xl mb-10"></div>
+          <div className="space-y-4">
+            <div className="h-4 w-full bg-white/10 rounded"></div>
+            <div className="h-4 w-5/6 bg-white/10 rounded"></div>
+            <div className="h-4 w-4/6 bg-white/10 rounded"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  )
+}
+}
+
+if (!article) {
+  return <p>Articolo non trovato</p>;
+}
 
   return (
     <>
+    <div
+ className="fixed top-0 left-0 h-2 bg-red-500 z-[9999] transition-all"
+  style={{ width: `${readProgress}%` }}
+></div>
+<button
+  onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+  className="fixed bottom-6 right-6 z-50 bg-red-600 hover:bg-red-700 text-white w-12 h-12 rounded-full shadow-lg transition"
+>
+  ↑
+</button>
       <Helmet>
         <title>{article.seoTitle || article.title}</title>
         <meta
@@ -133,7 +204,7 @@ export default function ArticlePage() {
         <Navbar />
 
         <section className="pt-28 md:pt-40 px-4 md:px-6 pb-24">
-          <div className="max-w-5xl mx-auto">
+          <div className="w-full max-w-4xl mx-auto px-4 sm:px-6">
             <p className="uppercase tracking-[0.25em] text-white/40 text-xs md:text-sm mb-5">
               {article.category}
             </p>
@@ -146,18 +217,66 @@ export default function ArticlePage() {
               <img
                 src={article.coverImage}
                 alt={article.title}
-                className="w-full h-[320px] sm:h-[460px] md:h-[680px] object-cover rounded-[2rem] mb-10"
+                className="w-full h-[220px] sm:h-[420px] md:h-[680px] object-cover rounded-[2rem] mb-10"
               />
-            )}
+           )}
 
             <p className="text-white/40 mb-10 text-sm">
               {article.publishDate}
             </p>
+            <div className="flex flex-wrap gap-3 my-6">
+  <button
+    onClick={shareOnWhatsApp}
+    className="px-4 py-2 rounded-full bg-green-600 text-white text-sm font-semibold"
+  >
+    Condividi su WhatsApp
+  </button>
+
+  <button
+    onClick={copyLink}
+    className="px-4 py-2 rounded-full bg-white/10 text-white text-sm font-semibold border border-white/10"
+  >
+    Copia link
+  </button>
+</div>
 
             <div
-              className="text-base md:text-xl leading-[1.9] text-white/80 mb-20 max-w-none"
+              className="text-[15px] sm:text-base md:text-xl leading-7 md:leading-[1.9]
+              text-white/80 mb-20 max-w-none
+              break-words"
               dangerouslySetInnerHTML={{ __html: article.content }}
             />
+            {relatedArticles.length > 0 && (
+  <section className="mt-16">
+    <h2 className="text-2xl font-bold text-white mb-6">
+      Potrebbe interessarti
+    </h2>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {relatedArticles.map((item) => (
+        <a
+          key={item.id}
+          href={`/articolo/${item.slug}`}
+          className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition"
+        >
+          {item.coverImage && (
+            <img
+              src={item.coverImage}
+              alt={item.title}
+              className="w-full h-40 object-cover"
+            />
+          )}
+
+          <div className="p-4">
+            <h3 className="text-white font-bold text-lg">
+              {item.title}
+            </h3>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+)}
 
             <div className="border-t border-white/10 pt-12">
               <h2 className="text-3xl md:text-4xl font-black mb-8">

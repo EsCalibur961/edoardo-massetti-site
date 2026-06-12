@@ -13,7 +13,8 @@ export default function ArticleCard({ article }) {
   return (
     <motion.div
       whileHover={{ y: -10 }}
-      className="bg-black text-white rounded-[2rem] overflow-hidden"
+       transition={{ duration: 0.3 }}
+  className="bg-black text-white rounded-[2rem] overflow-hidden"
     >
       {article.coverImage && (
         <img
@@ -36,7 +37,7 @@ export default function ArticleCard({ article }) {
         <p className="text-white/50 mb-6">{article.description}</p>
 
         <Link
-          to={`/article/${article.slug}`}
+  to={`/articolo/${article.slug || article.id}`}
           className="inline-block px-6 py-3 rounded-full bg-white text-black font-bold"
         >
           Leggi articolo

@@ -29,6 +29,8 @@ export default function AdminPage() {
   const ADMIN_EMAIL = "massetti.edoardo@libero.it"
 
   const [user, setUser] = useState(null)
+  const [adminProfile, setAdminProfile] = useState(null)
+  const [authChecked, setAuthChecked] = useState(false)
   const [articles, setArticles] = useState([])
   const [podcasts, setPodcasts] = useState([])
   const [stats, setStats] = useState({ views: 0 })
@@ -86,7 +88,7 @@ export default function AdminPage() {
     createdAt: null,
   })
 
-  const isAdmin = user?.email === ADMIN_EMAIL
+  const isAdmin = user?.email === ADMIN_EMAIL || adminProfile?.role === "admin"
 
   function createSlug(text) {
     return text
@@ -107,11 +109,12 @@ export default function AdminPage() {
   }
 
   async function loadDashboard() {
-    const articlesData = await getDocs(collection(db, "articles"))
-    const podcastsData = await getDocs(collection(db, "podcasts"))
-    const registrationsData = await getDocs(collection(db, "registrations"))
-    const statsSnap = await getDoc(doc(db, "stats", "main"))
-    const breakingSnap = await getDoc(doc(db, "settings", "breakingNews"))
+    try {
+      const articlesData = await getDocs(collection(db, "articles"))
+      const podcastsData = await getDocs(collection(db, "podcasts"))
+      const registrationsData = await getDocs(collection(db, "registrations"))
+      const statsSnap = await getDoc(doc(db, "stats", "main"))
+      const breakingSnap = await getDoc(doc(db, "settings", "breakingNews"))
 
     setArticles(
       articlesData.docs
@@ -145,20 +148,42 @@ export default function AdminPage() {
       setStats(statsSnap.data())
     }
 
-    if (breakingSnap.exists()) {
-      setBreakingNews(breakingSnap.data())
+      if (breakingSnap.exists()) {
+        setBreakingNews(breakingSnap.data())
+      }
+    } catch (error) {
+      console.error("Errore caricamento dashboard:", error)
+      setMessage("Errore caricamento dashboard: controlla le regole Firestore.")
     }
   }
 
   useEffect(() => {
-    loadDashboard()
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser)
+      setAdminProfile(null)
+
+      if (currentUser) {
+        try {
+          const userSnap = await getDoc(doc(db, "users", currentUser.uid))
+          if (userSnap.exists()) {
+            setAdminProfile(userSnap.data())
+          }
+        } catch (error) {
+          console.error("Errore controllo ruolo admin:", error)
+        }
+      }
+
+      setAuthChecked(true)
     })
 
     return () => unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadDashboard()
+    }
+  }, [isAdmin])
 
   async function loginAdmin() {
     try {
