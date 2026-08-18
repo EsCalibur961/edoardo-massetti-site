@@ -220,22 +220,31 @@ export default function ProfilePage() {
     }
   }
 
+  const fieldClass =
+    "w-full rounded-[14px] border border-white/[0.08] bg-white/[0.035] px-4 py-3.5 text-[14px] text-white outline-none transition placeholder:text-white/30 focus:border-red-500/45 focus:bg-white/[0.05] disabled:opacity-45"
+
   if (!user) {
     return (
-      <main className="min-h-screen bg-black text-white">
+      <main className="min-h-screen bg-[#080808] text-white">
         <Navbar />
 
-        <section className="pt-40 px-6">
-          <div className="max-w-xl mx-auto p-8 rounded-[2rem] bg-white text-black">
-            <h1 className="text-4xl font-black mb-6">Profilo utente</h1>
+        <section className="fd-container flex min-h-[calc(100vh-74px)] items-center py-14">
+          <div className="mx-auto w-full max-w-xl rounded-[24px] border border-white/[0.07] bg-[#101010] p-7 sm:p-9">
+            <p className="text-[10px] font-black uppercase tracking-[.2em] text-red-500">
+              Area personale
+            </p>
 
-            <p className="text-black/60 mb-6">
-              Devi effettuare il login per vedere il tuo profilo.
+            <h1 className="mt-2 text-[36px] font-black tracking-[-.04em]">
+              Profilo utente
+            </h1>
+
+            <p className="mt-4 text-sm leading-6 text-white/38">
+              Devi effettuare il login per visualizzare e gestire il tuo profilo.
             </p>
 
             <Link
               to="/login"
-              className="inline-block px-8 py-4 rounded-full bg-black text-white font-black"
+              className="mt-7 inline-flex rounded-full bg-red-600 px-6 py-3 text-sm font-black text-white transition hover:bg-red-500"
             >
               Vai al login
             </Link>
@@ -246,165 +255,200 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="min-h-screen bg-[#080808] text-white">
       <Navbar />
 
-      <section className="pt-40 px-6 pb-28">
-        <div className="max-w-5xl mx-auto">
-          <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
-            Area personale
-          </p>
+      <section className="fd-container py-12 md:py-16">
+        <div className="mb-8">
+          <div className="flex items-center gap-3">
+            <span className="h-px w-8 bg-red-600" />
+            <p className="text-[10px] font-black uppercase tracking-[.22em] text-red-500">
+              Area personale
+            </p>
+          </div>
 
-          <h1 className="text-5xl md:text-7xl font-black mt-4 mb-10">
-            Profilo utente
+          <h1 className="mt-4 text-[44px] font-black leading-none tracking-[-.05em] sm:text-[56px]">
+            Il tuo profilo
           </h1>
+        </div>
 
-          {message && <p className="mb-8 text-white/70 font-bold">{message}</p>}
+        {message && (
+          <div className="mb-7 rounded-[14px] border border-red-500/20 bg-red-500/[0.08] px-5 py-4 text-sm font-semibold text-red-200">
+            {message}
+          </div>
+        )}
 
-          <div className="grid lg:grid-cols-3 gap-8">
-            <div className="p-8 rounded-[2rem] bg-white text-black">
-              <div className="w-32 h-32 rounded-full bg-black/10 overflow-hidden mb-6">
-                {profile.avatarUrl ? (
-                  <img
-                    src={profile.avatarUrl}
-                    alt="Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-4xl font-black">
-                    FD
-                  </div>
-                )}
-              </div>
+        <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+          <aside className="rounded-[24px] border border-white/[0.07] bg-[#101010] p-6">
+            <div className="h-28 w-28 overflow-hidden rounded-full border border-white/[0.08] bg-white/[0.04]">
+              {profile.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt="Avatar"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="grid h-full place-items-center text-3xl font-black text-white/55">
+                  FD
+                </div>
+              )}
+            </div>
 
-              <h2 className="text-3xl font-black">
-                {isAdmin
-                  ? "Edoardo Massetti"
-                  : profile.displayName || "Utente FattiDiretti"}
-              </h2>
+            <h2 className="mt-5 text-[28px] font-black leading-[1] tracking-[-.035em]">
+              {isAdmin
+                ? "Edoardo Massetti"
+                : profile.displayName || "Utente FattiDiretti"}
+            </h2>
 
-              <p className="text-black/50 mt-2">
-                @{profile.username || "username"}
-              </p>
+            <p className="mt-2 text-sm text-white/32">
+              @{profile.username || "username"}
+            </p>
 
-              <p className="text-black/50 mt-2">{user.email}</p>
+            <p className="mt-1 break-all text-xs text-white/24">
+              {user.email}
+            </p>
 
+            <div className="mt-6 space-y-2.5 border-t border-white/[0.07] pt-5 text-sm text-white/45">
               {profile.birthDate && (
-                <p className="mt-4 text-black/70">🎂 {profile.birthDate}</p>
+                <div className="flex justify-between gap-4">
+                  <span className="text-white/22">Nascita</span>
+                  <span>{profile.birthDate}</span>
+                </div>
               )}
 
               {profile.city && (
-                <p className="mt-2 text-black/70">📍 {profile.city}</p>
+                <div className="flex justify-between gap-4">
+                  <span className="text-white/22">Città</span>
+                  <span>{profile.city}</span>
+                </div>
               )}
 
               {profile.interests && (
-                <p className="mt-2 text-black/70">🎯 {profile.interests}</p>
+                <div className="pt-2">
+                  <p className="text-[9px] font-black uppercase tracking-[.14em] text-red-500">
+                    Interessi
+                  </p>
+                  <p className="mt-2 leading-6 text-white/42">
+                    {profile.interests}
+                  </p>
+                </div>
               )}
 
               {profile.bio && (
-                <p className="mt-6 text-black/70 leading-relaxed">
-                  {profile.bio}
-                </p>
+                <div className="pt-2">
+                  <p className="text-[9px] font-black uppercase tracking-[.14em] text-red-500">
+                    Bio
+                  </p>
+                  <p className="mt-2 leading-6 text-white/42">
+                    {profile.bio}
+                  </p>
+                </div>
               )}
-
-              <div className="mt-8 space-y-5">
-                {!isAdmin && (
-                  <div>
-                    <p className="text-black/40 font-bold uppercase text-sm">
-                      Verifica email
-                    </p>
-
-                    <p
-                      className={`text-2xl font-black mt-2 ${
-                        user.emailVerified ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {user.emailVerified ? "Verificata" : "Non verificata"}
-                    </p>
-                  </div>
-                )}
-
-                {!isAdmin && !user.emailVerified && (
-                  <button
-                    onClick={resendVerificationEmail}
-                    className="w-full px-6 py-4 rounded-full bg-black text-white font-black"
-                  >
-                    Reinvia verifica
-                  </button>
-                )}
-
-                {isAdmin && (
-                  <Link
-                    to="/admin"
-                    className="block w-full px-6 py-4 rounded-full bg-red-600 text-white font-black text-center"
-                  >
-                    Vai al pannello admin
-                  </Link>
-                )}
-
-                <button
-                  onClick={() => setEditOpen(!editOpen)}
-                  className="w-full px-6 py-4 rounded-full bg-black text-white font-black"
-                >
-                  {editOpen ? "Chiudi modifica" : "Modifica profilo"}
-                </button>
-                <button
-  onClick={activateNotifications}
-  className="w-full px-6 py-4 rounded-full bg-black text-white font-black"
->
-  Attiva notifiche
-</button>
-
-                <button
-                  onClick={logoutUser}
-                  className="w-full px-6 py-4 rounded-full border border-black/20 text-black font-black"
-                >
-                  Logout
-                </button>
-
-                {!isAdmin && (
-                  <button
-                    onClick={() => setShowDeleteBox(!showDeleteBox)}
-                    className="w-full px-6 py-4 rounded-full border border-red-500 text-red-600 font-black"
-                  >
-                    Elimina account
-                  </button>
-                )}
-
-                {!isAdmin && showDeleteBox && (
-                  <div className="p-4 rounded-2xl bg-red-50 border border-red-200">
-                    <p className="text-red-700 font-bold mb-4">
-                      Questa azione è definitiva. Il profilo verrà eliminato.
-                    </p>
-
-                    {user.providerData[0]?.providerId === "password" && (
-                      <input
-                        type="password"
-                        placeholder="Inserisci password"
-                        value={deletePassword}
-                        onChange={(e) => setDeletePassword(e.target.value)}
-                        className="w-full px-5 py-4 rounded-2xl bg-white border border-red-200 outline-none mb-4"
-                      />
-                    )}
-
-                    <button
-                      onClick={deleteAccount}
-                      className="w-full px-6 py-4 rounded-full bg-red-600 text-white font-black"
-                    >
-                      Conferma eliminazione account
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
 
-            {editOpen && (
-              <div className="lg:col-span-2 p-8 rounded-[2rem] bg-white text-black">
-                <h2 className="text-3xl font-black mb-6">
-                  Modifica profilo
+            {!isAdmin && (
+              <div className="mt-6 rounded-[14px] border border-white/[0.07] bg-white/[0.02] p-4">
+                <p className="text-[9px] font-black uppercase tracking-[.14em] text-white/24">
+                  Verifica email
+                </p>
+                <p
+                  className={`mt-2 text-sm font-black ${
+                    user.emailVerified ? "text-emerald-400" : "text-red-400"
+                  }`}
+                >
+                  {user.emailVerified ? "Email verificata" : "Email non verificata"}
+                </p>
+
+                {!user.emailVerified && (
+                  <button
+                    onClick={resendVerificationEmail}
+                    className="mt-3 text-xs font-black text-red-500 hover:text-red-400"
+                  >
+                    Reinvia verifica →
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="mt-6 space-y-2.5">
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className="block w-full rounded-[13px] bg-red-600 px-5 py-3 text-center text-xs font-black text-white transition hover:bg-red-500"
+                >
+                  Pannello admin
+                </Link>
+              )}
+
+              <button
+                onClick={() => setEditOpen(!editOpen)}
+                className="w-full rounded-[13px] border border-white/[0.08] bg-white/[0.035] px-5 py-3 text-xs font-black text-white/70 transition hover:border-red-500/30 hover:text-red-400"
+              >
+                {editOpen ? "Chiudi modifica" : "Modifica profilo"}
+              </button>
+
+              <button
+                onClick={activateNotifications}
+                className="w-full rounded-[13px] border border-white/[0.08] bg-white/[0.035] px-5 py-3 text-xs font-black text-white/70 transition hover:border-red-500/30 hover:text-red-400"
+              >
+                Attiva notifiche
+              </button>
+
+              <button
+                onClick={logoutUser}
+                className="w-full rounded-[13px] border border-white/[0.08] px-5 py-3 text-xs font-black text-white/45 transition hover:text-white"
+              >
+                Logout
+              </button>
+
+              {!isAdmin && (
+                <button
+                  onClick={() => setShowDeleteBox(!showDeleteBox)}
+                  className="w-full rounded-[13px] border border-red-500/20 bg-red-500/[0.04] px-5 py-3 text-xs font-black text-red-400 transition hover:bg-red-500/[0.08]"
+                >
+                  Elimina account
+                </button>
+              )}
+            </div>
+
+            {!isAdmin && showDeleteBox && (
+              <div className="mt-4 rounded-[14px] border border-red-500/20 bg-red-500/[0.07] p-4">
+                <p className="text-xs font-semibold leading-5 text-red-200/80">
+                  Questa azione è definitiva. Il profilo verrà eliminato.
+                </p>
+
+                {user.providerData[0]?.providerId === "password" && (
+                  <input
+                    type="password"
+                    placeholder="Inserisci password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    className={`${fieldClass} mt-3`}
+                  />
+                )}
+
+                <button
+                  onClick={deleteAccount}
+                  className="mt-3 w-full rounded-[12px] bg-red-600 px-4 py-3 text-xs font-black text-white"
+                >
+                  Conferma eliminazione
+                </button>
+              </div>
+            )}
+          </aside>
+
+          <section className="min-w-0">
+            {editOpen ? (
+              <div className="rounded-[24px] border border-white/[0.07] bg-[#101010] p-6 sm:p-8">
+                <p className="text-[10px] font-black uppercase tracking-[.18em] text-red-500">
+                  Modifica
+                </p>
+
+                <h2 className="mt-2 text-[30px] font-black tracking-[-.04em]">
+                  Aggiorna il profilo
                 </h2>
 
-                <div className="space-y-4">
+                <div className="mt-7 grid gap-3.5 sm:grid-cols-2">
                   <input
                     type="text"
                     placeholder="Nome visualizzato"
@@ -416,7 +460,7 @@ export default function ProfilePage() {
                         displayName: e.target.value,
                       })
                     }
-                    className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                    className={fieldClass}
                   />
 
                   <input
@@ -429,7 +473,7 @@ export default function ProfilePage() {
                         username: e.target.value,
                       })
                     }
-                    className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                    className={fieldClass}
                   />
 
                   <input
@@ -441,7 +485,7 @@ export default function ProfilePage() {
                         birthDate: e.target.value,
                       })
                     }
-                    className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                    className={fieldClass}
                   />
 
                   <input
@@ -454,7 +498,7 @@ export default function ProfilePage() {
                         city: e.target.value,
                       })
                     }
-                    className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                    className={fieldClass}
                   />
 
                   <input
@@ -467,19 +511,25 @@ export default function ProfilePage() {
                         interests: e.target.value,
                       })
                     }
-                    className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                    className={`${fieldClass} sm:col-span-2`}
                   />
 
-                  <div>
-                    <p className="font-bold mb-2">Carica foto profilo</p>
+                  <label className="cursor-pointer rounded-[14px] border border-dashed border-white/[0.12] bg-white/[0.025] p-5 sm:col-span-2">
+                    <p className="text-sm font-black">Foto profilo</p>
+                    <p className="mt-1 text-xs text-white/28">
+                      Seleziona una nuova immagine dal dispositivo.
+                    </p>
+                    <p className="mt-3 truncate text-xs font-semibold text-white/50">
+                      {avatarFile?.name || "Scegli file"}
+                    </p>
 
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(e) => setAvatarFile(e.target.files[0])}
-                      className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none"
+                      className="hidden"
                     />
-                  </div>
+                  </label>
 
                   <textarea
                     rows="5"
@@ -491,19 +541,47 @@ export default function ProfilePage() {
                         bio: e.target.value,
                       })
                     }
-                    className="w-full px-5 py-4 rounded-2xl bg-black/5 border border-black/10 outline-none resize-none"
+                    className={`${fieldClass} resize-none sm:col-span-2`}
                   />
+                </div>
 
-                  <button
-                    onClick={saveProfile}
-                    className="w-full px-8 py-4 rounded-full bg-black text-white font-black"
-                  >
-                    Salva profilo
-                  </button>
+                <button
+                  onClick={saveProfile}
+                  className="mt-6 rounded-[14px] bg-red-600 px-6 py-3.5 text-sm font-black text-white transition hover:bg-red-500"
+                >
+                  Salva profilo
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-[20px] border border-white/[0.07] bg-[#101010] p-6">
+                  <p className="text-[9px] font-black uppercase tracking-[.17em] text-red-500">
+                    Account
+                  </p>
+                  <h3 className="mt-3 text-[22px] font-black tracking-[-.03em]">
+                    Profilo attivo
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-white/34">
+                    Le informazioni del tuo profilo sono visibili qui e possono
+                    essere aggiornate in qualsiasi momento.
+                  </p>
+                </div>
+
+                <div className="rounded-[20px] border border-white/[0.07] bg-[#101010] p-6">
+                  <p className="text-[9px] font-black uppercase tracking-[.17em] text-red-500">
+                    Notifiche
+                  </p>
+                  <h3 className="mt-3 text-[22px] font-black tracking-[-.03em]">
+                    Resta aggiornato
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-white/34">
+                    Puoi abilitare le notifiche dal pannello a sinistra per ricevere
+                    gli aggiornamenti supportati dal sito.
+                  </p>
                 </div>
               </div>
             )}
-          </div>
+          </section>
         </div>
       </section>
     </main>

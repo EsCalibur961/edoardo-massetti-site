@@ -1,83 +1,92 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useParams } from "react-router-dom"
 import { collection, getDocs } from "firebase/firestore"
 import { Helmet } from "react-helmet-async"
 import { db } from "../firebase"
-
 import Navbar from "../components/Navbar"
 import Footer from "../components/Footer"
 import ArticleCard from "../components/ArticleCard"
+
+function getTimestamp(item) {
+  if (item.publishDate) {
+    const parts = item.publishDate.split("/")
+    if (parts.length === 3) {
+      return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime()
+    }
+  }
+
+  return item.createdAt?.seconds * 1000 || 0
+}
 
 export default function CategoryPage() {
   const { category } = useParams()
   const [articles, setArticles] = useState([])
 
-  const categoryName = category.replaceAll("-", " ")
+  const categoryName = useMemo(
+    () => decodeURIComponent(category || "").replaceAll("-", " "),
+    [category]
+  )
 
   useEffect(() => {
-    async function loadArticles() {
-      const data = await getDocs(collection(db, "articles"))
-
+    getDocs(collection(db, "articles")).then((data) => {
       const filtered = data.docs
-        .map((item) => ({
-          id: item.id,
-          ...item.data(),
-        }))
+        .map((item) => ({ id: item.id, ...item.data() }))
         .filter(
           (article) =>
             article.category?.toLowerCase().trim() ===
             categoryName.toLowerCase().trim()
         )
+        .sort((a, b) => getTimestamp(b) - getTimestamp(a))
 
       setArticles(filtered)
-    }
-
-    loadArticles()
+    })
   }, [categoryName])
 
   return (
     <>
       <Helmet>
         <title>{categoryName} | FattiDiretti</title>
-        <meta
-          name="description"
-          content={`Articoli della categoria ${categoryName} su FattiDiretti.`}
-        />
       </Helmet>
 
       <main className="min-h-screen bg-[#080808] text-white">
         <Navbar />
 
-        <section className="pt-36 px-6 pb-20 border-b border-white/10">
-          <div className="max-w-7xl mx-auto">
-            <p className="uppercase tracking-[0.35em] text-white/40 text-sm">
-              Categoria
-            </p>
+        <section className="border-b border-white/[0.06] bg-[#0a0a0a]">
+          <div className="fd-container py-12 md:py-18">
+            <div className="flex items-center gap-3">
+              <span className="h-px w-8 bg-red-600" />
+              <p className="text-[10px] font-black uppercase tracking-[.22em] text-red-500">
+                Categoria
+              </p>
+            </div>
 
-            <h1 className="text-6xl md:text-8xl font-black mt-4 capitalize">
-              {categoryName}
-            </h1>
+            <div className="mt-4 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+              <h1 className="max-w-4xl text-[48px] font-black capitalize leading-none tracking-[-.055em] sm:text-[62px] md:text-[76px]">
+                {categoryName}
+              </h1>
 
-            <p className="text-white/50 text-xl mt-6">
-              Tutti gli articoli pubblicati in questa categoria.
-            </p>
+              <p className="text-[13px] font-semibold text-white/30">
+                {articles.length} {articles.length === 1 ? "articolo" : "articoli"}
+              </p>
+            </div>
           </div>
         </section>
 
-        <section className="px-6 py-24 bg-white text-black">
-          <div className="max-w-7xl mx-auto">
-            {articles.length === 0 ? (
-              <p className="text-black/50 text-xl">
-                Nessun articolo trovato in questa categoria.
+        <section className="fd-container py-12 md:py-16">
+          {articles.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {articles.map((article) => (
+                <ArticleCard key={article.id} article={article} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-8">
+              <p className="text-[18px] font-bold">Nessun articolo trovato.</p>
+              <p className="mt-2 text-sm text-white/35">
+                Non ci sono ancora contenuti pubblicati in questa categoria.
               </p>
-            ) : (
-              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-                {articles.map((article) => (
-                  <ArticleCard key={article.id} article={article} />
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </section>
 
         <Footer />

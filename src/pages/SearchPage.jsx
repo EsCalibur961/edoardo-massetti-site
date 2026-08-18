@@ -1,160 +1,144 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { collection, getDocs } from "firebase/firestore"
 import { Helmet } from "react-helmet-async"
 import { Link } from "react-router-dom"
-
+import { Search } from "lucide-react"
 import { db } from "../firebase"
 import Navbar from "../components/Navbar"
 import Footer from "../components/Footer"
 import ArticleCard from "../components/ArticleCard"
 
 export default function SearchPage() {
-  const [query, setQuery] = useState("")
+  const [queryText, setQueryText] = useState("")
   const [articles, setArticles] = useState([])
   const [podcasts, setPodcasts] = useState([])
 
   useEffect(() => {
-    async function loadData() {
-      const articlesData = await getDocs(collection(db, "articles"))
-      const podcastsData = await getDocs(collection(db, "podcasts"))
-
-      setArticles(
-        articlesData.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-      )
-
-      setPodcasts(
-        podcastsData.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-      )
-    }
-
-    loadData()
+    Promise.all([
+      getDocs(collection(db, "articles")),
+      getDocs(collection(db, "podcasts")),
+    ]).then(([articlesData, podcastsData]) => {
+      setArticles(articlesData.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
+      setPodcasts(podcastsData.docs.map((doc) => ({ id: doc.id, ...doc.data() })))
+    })
   }, [])
 
-  const cleanQuery = query.toLowerCase().trim()
+  const normalizedQuery = queryText.toLowerCase().trim()
 
-  const filteredArticles = articles.filter((article) => {
-    if (!cleanQuery) return true
+  const matches = (item) => {
+    if (!normalizedQuery) return true
 
-    return (
-      article.title?.toLowerCase().includes(cleanQuery) ||
-      article.category?.toLowerCase().includes(cleanQuery) ||
-      article.description?.toLowerCase().includes(cleanQuery)
-    )
-  })
+    return [item.title, item.category, item.description]
+      .filter(Boolean)
+      .some((value) => value.toLowerCase().includes(normalizedQuery))
+  }
 
-  const filteredPodcasts = podcasts.filter((podcast) => {
-    if (!cleanQuery) return true
+  const filteredArticles = useMemo(
+    () => articles.filter(matches),
+    [articles, normalizedQuery]
+  )
 
-    return (
-      podcast.title?.toLowerCase().includes(cleanQuery) ||
-      podcast.category?.toLowerCase().includes(cleanQuery) ||
-      podcast.description?.toLowerCase().includes(cleanQuery)
-    )
-  })
+  const filteredPodcasts = useMemo(
+    () => podcasts.filter(matches),
+    [podcasts, normalizedQuery]
+  )
 
   return (
     <>
       <Helmet>
         <title>Ricerca | FattiDiretti</title>
-        <meta
-          name="description"
-          content="Cerca articoli, podcast, reportage e contenuti su FattiDiretti."
-        />
       </Helmet>
 
       <main className="min-h-screen bg-[#080808] text-white">
         <Navbar />
 
-        <section className="pt-32 md:pt-40 px-4 md:px-6 pb-20 border-b border-white/10">
-          <div className="max-w-7xl mx-auto">
-            <p className="uppercase tracking-[0.35em] text-white/40 text-xs md:text-sm">
-              Cerca contenuti
-            </p>
+        <section className="border-b border-white/[0.06] bg-[#0a0a0a]">
+          <div className="fd-container py-12 md:py-18">
+            <div className="flex items-center gap-3">
+              <span className="h-px w-8 bg-red-600" />
+              <p className="text-[10px] font-black uppercase tracking-[.22em] text-red-500">
+                Trova un contenuto
+              </p>
+            </div>
 
-            <h1 className="text-5xl md:text-8xl font-black mt-4 mb-10">
-              Ricerca
+            <h1 className="mt-4 max-w-5xl text-[42px] font-black leading-[.98] tracking-[-.05em] sm:text-[54px] md:text-[68px]">
+              Cosa stai cercando?
             </h1>
 
-            <input
-              type="text"
-              placeholder="Cerca articoli, podcast, categorie..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full max-w-3xl px-6 py-5 rounded-2xl bg-white text-black text-lg outline-none"
-            />
+            <div className="mt-8 flex max-w-3xl items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-5 py-4 transition focus-within:border-red-500/45 focus-within:bg-white/[0.05]">
+              <Search size={21} className="shrink-0 text-red-500" />
+              <input
+                autoFocus
+                value={queryText}
+                onChange={(event) => setQueryText(event.target.value)}
+                placeholder="Titolo, argomento, categoria..."
+                className="w-full bg-transparent text-[16px] text-white outline-none placeholder:text-white/25"
+              />
+            </div>
           </div>
         </section>
 
-        <section className="px-4 md:px-6 py-20 md:py-24 bg-white text-black">
-          <div className="max-w-7xl mx-auto">
-            <h2 className="text-4xl md:text-6xl font-black mb-10">
-              Articoli
-            </h2>
-
-            {filteredArticles.length === 0 ? (
-              <p className="text-black/50 text-xl">
-                Nessun articolo trovato.
+        <section className="fd-container py-12 md:py-16">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[.2em] text-red-500">
+                Risultati
               </p>
-            ) : (
-              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-                {filteredArticles.map((article) => (
-                  <ArticleCard key={article.id} article={article} />
-                ))}
-              </div>
-            )}
+              <h2 className="mt-2 text-[30px] font-black tracking-[-.04em]">
+                Articoli
+                <span className="ml-3 text-white/25">{filteredArticles.length}</span>
+              </h2>
+            </div>
           </div>
-        </section>
 
-        <section className="px-4 md:px-6 py-20 md:py-24 bg-[#080808] text-white">
-          <div className="max-w-7xl mx-auto">
-            <h2 className="text-4xl md:text-6xl font-black mb-10">
-              Podcast
-            </h2>
+          {filteredArticles.length > 0 ? (
+            <div className="mt-7 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filteredArticles.map((article) => (
+                <ArticleCard key={article.id} article={article} />
+              ))}
+            </div>
+          ) : (
+            <div className="mt-7 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-7 text-white/45">
+              Nessun articolo corrisponde alla ricerca.
+            </div>
+          )}
 
-            {filteredPodcasts.length === 0 ? (
-              <p className="text-white/50 text-xl">
-                Nessun podcast trovato.
+          {filteredPodcasts.length > 0 && (
+            <section className="mt-16 border-t border-white/[0.07] pt-10">
+              <p className="text-[10px] font-black uppercase tracking-[.2em] text-red-500">
+                Audio
               </p>
-            ) : (
-              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
+
+              <h2 className="mt-2 text-[30px] font-black tracking-[-.04em]">
+                Podcast
+                <span className="ml-3 text-white/25">{filteredPodcasts.length}</span>
+              </h2>
+
+              <div className="mt-7 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                 {filteredPodcasts.map((podcast) => (
                   <Link
                     key={podcast.id}
-                    to={`/podcast/${podcast.slug}`}
-                    className="rounded-[2rem] overflow-hidden bg-white/5 border border-white/10 hover:bg-white/10 transition"
+                    to={`/podcast/${podcast.slug || podcast.id}`}
+                    className="group rounded-[18px] border border-white/[0.07] bg-[#101010] p-5 transition duration-300 hover:-translate-y-1 hover:border-red-500/30 hover:bg-[#121212]"
                   >
-                    {podcast.coverImage && (
-                      <img
-                        src={podcast.coverImage}
-                        alt={podcast.title}
-                        className="w-full aspect-video object-cover"
-                      />
-                    )}
+                    <p className="text-[9px] font-black uppercase tracking-[.2em] text-red-500">
+                      Podcast
+                    </p>
 
-                    <div className="p-7">
-                      <p className="uppercase tracking-[0.25em] text-white/40 text-xs mb-4">
-                        {podcast.category}
-                      </p>
+                    <h3 className="mt-2 text-[20px] font-black leading-[1.1] tracking-[-.025em] transition group-hover:text-red-400">
+                      {podcast.title}
+                    </h3>
 
-                      <h3 className="text-3xl font-black mb-5">
-                        {podcast.title}
-                      </h3>
-
-                      <p className="text-white/50">
+                    {podcast.description && (
+                      <p className="mt-3 line-clamp-2 text-[13px] leading-6 text-white/40">
                         {podcast.description}
                       </p>
-                    </div>
+                    )}
                   </Link>
                 ))}
               </div>
-            )}
-          </div>
+            </section>
+          )}
         </section>
 
         <Footer />
