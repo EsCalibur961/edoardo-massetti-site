@@ -203,3 +203,30 @@ img {
     padding-top: 0.25rem;
   }
 }
+/* Quill editor Admin */
+.admin-editor .ql-editor {
+  color: #111 !important;
+  background: #fff !important;
+}
+
+.admin-editor .ql-editor p,
+.admin-editor .ql-editor span,
+.admin-editor .ql-editor strong,
+.admin-editor .ql-editor em,
+.admin-editor .ql-editor li {
+  color: #111;
+}
+
+.admin-editor .ql-editor.ql-blank::before {
+  color: #888 !important;
+}
+
+.admin-editor .ql-toolbar {
+  background: #fff;
+  color: #111;
+}
+
+.admin-editor .ql-toolbar button,
+.admin-editor .ql-toolbar .ql-picker {
+  color: #111;
+}
