@@ -44,6 +44,30 @@ import { db, auth, storage } from "../firebase"
 import Navbar from "../components/Navbar"
 
 export default function AdminPage() {
+  function toDateInputValue(value = "") {
+    if (!value) return ""
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return value
+    }
+
+    const parts = value.split("/")
+    if (parts.length !== 3) return ""
+
+    const [day, month, year] = parts
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+  }
+
+  function fromDateInputValue(value = "") {
+    if (!value) return ""
+
+    const parts = value.split("-")
+    if (parts.length !== 3) return value
+
+    const [year, month, day] = parts
+    return `${day}/${month}/${year}`
+  }
+
   const ADMIN_EMAIL = "massetti.edoardo@libero.it"
 
   const [user, setUser] = useState(null)
@@ -875,18 +899,22 @@ export default function AdminPage() {
                         className={fieldClass}
                       />
 
-                      <input
-                        type="text"
-                        placeholder="Data pubblicazione"
-                        value={articleForm.publishDate}
-                        onChange={(e) =>
-                          setArticleForm({
-                            ...articleForm,
-                            publishDate: e.target.value,
-                          })
-                        }
-                        className={fieldClass}
-                      />
+                      <div>
+                        <label className="mb-2 block text-[9px] font-black uppercase tracking-[.14em] text-white/28">
+                          Data pubblicazione
+                        </label>
+                        <input
+                          type="date"
+                          value={toDateInputValue(articleForm.publishDate)}
+                          onChange={(e) =>
+                            setArticleForm({
+                              ...articleForm,
+                              publishDate: fromDateInputValue(e.target.value),
+                            })
+                          }
+                          className={`${fieldClass} [color-scheme:dark]`}
+                        />
+                      </div>
                     </div>
 
                     <label className="block cursor-pointer rounded-[16px] border border-dashed border-white/[0.12] bg-white/[0.025] p-5 transition hover:border-red-500/35 hover:bg-red-500/[0.035]">
@@ -1029,18 +1057,22 @@ export default function AdminPage() {
                         className={fieldClass}
                       />
 
-                      <input
-                        type="text"
-                        placeholder="Data pubblicazione"
-                        value={podcastForm.publishDate}
-                        onChange={(e) =>
-                          setPodcastForm({
-                            ...podcastForm,
-                            publishDate: e.target.value,
-                          })
-                        }
-                        className={fieldClass}
-                      />
+                      <div>
+                        <label className="mb-2 block text-[9px] font-black uppercase tracking-[.14em] text-white/28">
+                          Data pubblicazione
+                        </label>
+                        <input
+                          type="date"
+                          value={toDateInputValue(podcastForm.publishDate)}
+                          onChange={(e) =>
+                            setPodcastForm({
+                              ...podcastForm,
+                              publishDate: fromDateInputValue(e.target.value),
+                            })
+                          }
+                          className={`${fieldClass} [color-scheme:dark]`}
+                        />
+                      </div>
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
